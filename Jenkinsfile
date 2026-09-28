@@ -33,7 +33,7 @@ pipeline {
                 echo '=== Instalando dependencias Node.js ==='
                 sh 'node --version'
                 sh 'npm --version'
-                sh 'npm ci'
+                sh 'npm install'
                 echo 'Dependencias instaladas correctamente'
             }
         }
