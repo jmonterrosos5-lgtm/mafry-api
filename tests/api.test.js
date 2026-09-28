@@ -16,7 +16,7 @@ const TOKEN_INVALIDO = 'Bearer token_invalido_para_pruebas';
 describe('TC-01 al TC-03 | Endpoint raíz GET /', () => {
   test('TC-01 | GET / responde con HTTP 200', async () => {
     const res = await request(app).get('/');
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(999);
   });
   test('TC-02 | GET / devuelve campo "mensaje" en el cuerpo', async () => {
     const res = await request(app).get('/');
