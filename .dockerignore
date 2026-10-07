@@ -1,0 +1,11 @@
+node_modules
+.env
+.env.*
+!.env.example
+.git
+coverage
+junit.xml
+respaldos
+mafry_movil
+docs
+tests

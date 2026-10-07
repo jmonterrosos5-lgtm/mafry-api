@@ -1,0 +1,109 @@
+✅ Esquema aplicado
+✅ Datos de demostración cargados
+PASS tests/auth.test.js (6.609 s)
+  Autenticación
+    ✓ login correcto devuelve token JWT y datos del usuario sin el hash (387 ms)
+    ✓ contraseña incorrecta y correo inexistente responden el mismo mensaje (sin enumeración) (677 ms)
+    ✓ valida el formato de entrada (400) (6 ms)
+    ✓ intento de inyección SQL en el login no da acceso (5 ms)
+    ✓ la cuenta se bloquea tras 5 intentos fallidos (423) y queda en bitácora (2441 ms)
+  Sesiones y tokens
+    ✓ sin token → 401 (8 ms)
+    ✓ token manipulado o firmado con otra clave → 401 (4 ms)
+    ✓ token con algoritmo "none" es rechazado (2 ms)
+    ✓ token expirado → 401 (4 ms)
+    ✓ un usuario desactivado pierde el acceso aunque su token no haya expirado (1047 ms)
+    ✓ política de contraseñas al crear usuario (mínimo 10, letra y número) (327 ms)
+    ✓ las contraseñas se guardan con bcrypt (nunca en texto plano) (1 ms)
+
+PASS tests/autorizacion.test.js
+  Control de acceso por rol (RBAC)
+    ✓ vendedor no puede usar GET /api/vendedores → 403 (5 ms)
+    ✓ vendedor no puede usar GET /api/admin/dashboard → 403 (5 ms)
+    ✓ vendedor no puede usar GET /api/admin/bitacora → 403 (4 ms)
+    ✓ vendedor no puede usar POST /api/productos → 403 (5 ms)
+    ✓ vendedor no puede verificar/anular cobros (segregación de funciones) (5 ms)
+    ✓ vendedor no puede confirmar pedidos, solo el admin (7 ms)
+    ✓ admin sí accede al dashboard y a la bitácora (23 ms)
+  Aislamiento de datos entre vendedores (IDOR)
+    ✓ Kevin no puede ver un pedido de Diego (404, no revela que existe) (10 ms)
+    ✓ Kevin no puede ver un cobro, visita ni cliente de Diego (10 ms)
+    ✓ Kevin no puede registrar un pedido en una visita de Diego (5 ms)
+    ✓ Kevin no puede cobrar un pedido de Diego (5 ms)
+    ✓ los listados solo devuelven datos propios (4 ms)
+    ✓ IDs no numéricos se rechazan con 400 (3 ms)
+
+PASS tests/seguridad.test.js
+  Cabeceras y configuración HTTP
+    ✓ helmet aplica cabeceras de seguridad y oculta la tecnología (10 ms)
+    ✓ CORS no autoriza orígenes desconocidos (6 ms)
+    ✓ health check reporta la base de datos (2 ms)
+  Manejo de errores
+    ✓ JSON mal formado → 400 sin stack trace (6 ms)
+    ✓ cuerpo mayor a 100 KB → 413 (5 ms)
+    ✓ ruta inexistente → 404 genérico (3 ms)
+    ✓ registro duplicado → 409 sin exponer detalles de PostgreSQL (678 ms)
+  Bitácora de auditoría
+    ✓ los inicios de sesión quedan registrados con IP (341 ms)
+    ✓ la bitácora no se puede modificar ni borrar (trigger en la BD) (16 ms)
+  Panel web
+    ✓ el panel se sirve desde /admin (8 ms)
+
+PASS tests/negocio.test.js
+  Flujo visita → pedido → cobro
+    ✓ el vendedor registra una visita y un pedido; el total se calcula en el servidor (27 ms)
+    ✓ el stock se descuenta al registrar el pedido (6 ms)
+    ✓ no se puede cobrar más que el saldo pendiente (7 ms)
+    ✓ transferencia sin referencia se rechaza (8 ms)
+    ✓ cobro parcial correcto y el saldo se actualiza (17 ms)
+    ✓ el admin confirma y entrega; no se permiten saltos de estado inválidos (24 ms)
+  Integridad y validaciones
+    ✓ pedido con cantidad mayor al stock se rechaza y no deja nada a medias (transacción) (17 ms)
+    ✓ anular un pedido pendiente devuelve el stock (32 ms)
+    ✓ pedido inválido → 400 (0: { id_visita: 1, items: [] }) (6 ms)
+    ✓ pedido inválido → 400 (1: { id_visita: 1, items: [Array] }) (4 ms)
+    ✓ pedido inválido → 400 (2: { id_visita: 'abc', items: [Array] }) (3 ms)
+    ✓ la base de datos rechaza un precio negativo aunque se salte la API (CHECK) (1 ms)
+    ✓ cambio de precio queda auditado con valor anterior y nuevo (9 ms)
+
+--------------------------|---------|----------|---------|---------|----------------------
+File                      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s    
+--------------------------|---------|----------|---------|---------|----------------------
+All files                 |   82.15 |    60.07 |   69.49 |   84.65 |                      
+ src                      |   94.87 |      100 |   66.66 |   97.29 |                      
+  app.js                  |   94.87 |      100 |   66.66 |   97.29 | 53                   
+ src/config               |   83.33 |    65.38 |      75 |    82.6 |                      
+  db.js                   |   88.88 |       50 |      50 |    87.5 | 25                   
+  env.js                  |      80 |    68.18 |     100 |      80 | 11,18,24             
+ src/controllers          |   72.61 |    54.18 |      50 |    76.2 |                      
+  authController.js       |    72.5 |       90 |   33.33 |    72.5 | 80-87,91-100         
+  clientesController.js   |   55.17 |     12.5 |      50 |   55.55 | 34,38-48,52-71       
+  cobrosController.js     |   73.91 |       50 |      50 |    77.5 | 15-19,28,68-75       
+  dashboardController.js  |     100 |      100 |     100 |     100 |                      
+  pedidosController.js    |   94.28 |    80.48 |     100 |   96.96 | 111,119              
+  productosController.js  |   63.63 |    11.11 |      20 |   67.74 | 11-12,16,20-22,26-33 
+  vendedoresController.js |    65.3 |    43.75 |   33.33 |   71.11 | 11,15-17,63-69,74-81 
+  visitasController.js    |   55.26 |       60 |      50 |    62.5 | 13-17,26,49-61       
+ src/middleware           |   89.74 |    68.75 |     100 |    91.3 |                      
+  auth.js                 |   96.42 |       95 |     100 |   96.15 | 38                   
+  errores.js              |   78.78 |       40 |     100 |   82.14 | 16,53-57             
+  rateLimit.js            |     100 |    66.66 |     100 |     100 | 9-18                 
+  validar.js              |     100 |      100 |     100 |     100 |                      
+ src/routes               |     100 |      100 |     100 |     100 |                      
+  admin.js                |     100 |      100 |     100 |     100 |                      
+  auth.js                 |     100 |      100 |     100 |     100 |                      
+  clientes.js             |     100 |      100 |     100 |     100 |                      
+  cobros.js               |     100 |      100 |     100 |     100 |                      
+  pedidos.js              |     100 |      100 |     100 |     100 |                      
+  productos.js            |     100 |      100 |     100 |     100 |                      
+  vendedores.js           |     100 |      100 |     100 |     100 |                      
+  visitas.js              |     100 |      100 |     100 |     100 |                      
+ src/utils                |   88.88 |       75 |     100 |   88.88 |                      
+  bitacora.js             |      80 |       75 |     100 |      80 | 20                   
+  politicas.js            |     100 |      100 |     100 |     100 |                      
+--------------------------|---------|----------|---------|---------|----------------------
+Test Suites: 4 passed, 4 total
+Tests:       48 passed, 48 total
+Snapshots:   0 total
+Time:        11.457 s
+Ran all test suites.

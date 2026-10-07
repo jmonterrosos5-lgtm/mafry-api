@@ -1,0 +1,40 @@
+name: APK MAFRY Vendedor
+
+# Compila el APK en GitHub (no hace falta tener Flutter instalado en la PC).
+# Ejecutar desde la pestaña Actions → "APK MAFRY Vendedor" → Run workflow.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['mafry_movil/**']
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mafry_movil
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Preparar proyecto Android
+        run: ./preparar_android.sh
+      - name: Análisis estático
+        run: flutter analyze --no-fatal-infos
+      - name: Compilar APK release
+        # La URL pública de la API se guarda como variable del repositorio (Settings → Variables)
+        run: flutter build apk --release --dart-define=API_URL=${{ vars.MAFRY_API_URL }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mafry-vendedor-apk
+          path: mafry_movil/build/app/outputs/flutter-apk/app-release.apk

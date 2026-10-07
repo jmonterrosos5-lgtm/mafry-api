@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+
+# Secretos y configuración local — NUNCA se suben al repositorio
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Respaldos de base de datos (contienen datos de clientes)
+respaldos/
+*.dump
+*.sql.gz
+
+# Resultados de pruebas y cobertura
+coverage/
+junit.xml
+
+# Logs y sistema
+logs/
+*.log
+.DS_Store
+Thumbs.db
+
+# Archivos temporales para borrar
+_to_delete/

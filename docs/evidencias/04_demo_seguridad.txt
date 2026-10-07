@@ -1,0 +1,43 @@
+
+▶ 1. Disponibilidad: /health
+{"estado":"ok","bd":"ok","version":"2.0.0"}
+
+▶ 2. Cabeceras de seguridad (Helmet)
+X-Request-Id: 859922bb-9a33-4741-af47-33ef37200f82
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+(x-powered-by no aparece: la tecnología del servidor no se revela)
+
+▶ 3. Acceso sin token → esperado 401
+GET /api/pedidos sin token: 401
+
+▶ 4. Token falsificado → esperado 401
+GET /api/vendedores con token falso: 401
+
+▶ 5. Inyección SQL en el login → esperado 400/401
+{"error":"Datos inválidos","campos":[{"campo":"correo","mensaje":"Correo inválido"}]}
+
+▶ 6. Vendedor intenta entrar a funciones de administrador → esperado 403
+GET /api/vendedores: 403
+GET /api/admin/dashboard: 403
+
+▶ 7. IDOR: vendedor 1 intenta ver un pedido del vendedor 2 → esperado 404
+Pedido #23 visto por su dueño: 200
+Pedido #23 visto por otro vendedor: 404
+
+▶ 8. Validación de entradas: cantidad negativa → esperado 400
+{"error":"Datos inválidos","campos":[{"campo":"items[0].cantidad","mensaje":"Cantidad entre 1 y 10000"}]}
+
+▶ 9. Manejo de errores: JSON roto → 400 sin detalles internos
+{"error":"JSON mal formado"}
+
+▶ 10. Fuerza bruta: 6 intentos fallidos sobre la cuenta del vendedor 2
+Intento 1 → HTTP 401
+Intento 2 → HTTP 401
+Intento 3 → HTTP 401
+Intento 4 → HTTP 401
+Intento 5 → HTTP 401
+Intento 6 → HTTP 423
+(401 = credenciales inválidas; 423 = cuenta bloqueada 15 min. Desbloquear desde el panel → Vendedores)

@@ -1,0 +1,56 @@
+name: CI MAFRY
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Mínimo privilegio para el token del workflow
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mafry_test
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-solo-pruebas
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://ci:ci-solo-pruebas@localhost:5432/mafry_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Auditoría de dependencias
+        run: npm audit --audit-level=high --omit=dev
+      - name: Pruebas (funcionales y de seguridad)
+        run: npm run test:ci
+      - name: Publicar cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/lcov-report
+
+  desplegar:
+    needs: pruebas
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar despliegue en Render
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "Render respondió HTTP %{http_code}\n"

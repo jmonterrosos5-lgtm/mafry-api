@@ -1,0 +1,29 @@
+# Blueprint de Render: servicio web de la API + panel.
+# La base de datos está en Neon (neon.tech); su cadena de conexión se carga en el
+# panel de Render como DATABASE_URL (sync: false = no se escribe en este archivo).
+services:
+  - type: web
+    name: mafry-api
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/server.js
+    healthCheckPath: /health
+    autoDeploy: false   # el despliegue lo dispara el pipeline cuando las pruebas pasan
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false     # cadena de Neon con ?sslmode=require
+      - key: DB_SSL
+        value: 'true'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AUTO_MIGRATE
+        value: 'true'
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_VENDEDOR_PASSWORD
+        sync: false

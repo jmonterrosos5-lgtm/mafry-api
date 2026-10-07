@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>MAFRY · Panel administrativo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Inicio de sesión -->
+  <main id="vista-login" class="login" hidden>
+    <form id="form-login" class="login-card" autocomplete="on" novalidate>
+      <div class="marca">MA<span>FRY</span></div>
+      <p class="marca-sub">Panel administrativo</p>
+      <h1>Iniciar sesión</h1>
+      <div id="login-error" class="alerta error" role="alert" hidden></div>
+      <label>Correo
+        <input type="email" name="correo" required maxlength="120" autocomplete="username">
+      </label>
+      <label>Contraseña
+        <input type="password" name="contrasena" required maxlength="72" autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn primario ancho">Ingresar</button>
+      <p class="nota">Acceso exclusivo para administración. Los vendedores usan la app móvil.</p>
+    </form>
+  </main>
+
+  <!-- Aplicación -->
+  <div id="vista-app" class="app" hidden>
+    <aside class="lateral">
+      <div class="marca chica">MA<span>FRY</span></div>
+      <nav id="menu">
+        <button data-vista="dashboard" class="activo">Dashboard</button>
+        <button data-vista="pedidos">Pedidos</button>
+        <button data-vista="cobros">Cobros</button>
+        <button data-vista="clientes">Clientes</button>
+        <button data-vista="productos">Productos</button>
+        <button data-vista="vendedores">Vendedores</button>
+        <button data-vista="bitacora">Bitácora</button>
+        <button data-vista="cuenta">Mi cuenta</button>
+      </nav>
+      <div class="usuario">
+        <span id="usuario-nombre"></span>
+        <button id="btn-salir" class="btn fantasma">Cerrar sesión</button>
+      </div>
+    </aside>
+    <section class="contenido">
+      <header class="barra">
+        <h2 id="titulo-vista">Dashboard</h2>
+        <button id="btn-recargar" class="btn fantasma">Actualizar</button>
+      </header>
+      <div id="aviso" class="alerta" role="status" hidden></div>
+      <div id="vista"></div>
+    </section>
+  </div>
+
+  <dialog id="modal"><div id="modal-cuerpo"></div></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
