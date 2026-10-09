@@ -97,12 +97,12 @@ class _PedidoScreenState extends State<PedidoScreen> {
                     ListTile(title: const Text('Total'), trailing: Text(q(p['total']), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
                     ListTile(
                       title: const Text('Saldo pendiente'),
-                      trailing: Text(q(p['saldo']), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: naranjaMafry)),
+                      trailing: Text(q(p['saldo']), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: rojoMafry)),
                     ),
                     const SizedBox(height: 16),
                     if (_saldo > 0 && p['estado'] != 'anulado')
                       FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: naranjaMafry, padding: const EdgeInsets.symmetric(vertical: 14)),
+                        style: FilledButton.styleFrom(backgroundColor: rojoMafry, padding: const EdgeInsets.symmetric(vertical: 14)),
                         onPressed: _cobrar,
                         icon: const Icon(Icons.payments),
                         label: const Text('Registrar cobro'),

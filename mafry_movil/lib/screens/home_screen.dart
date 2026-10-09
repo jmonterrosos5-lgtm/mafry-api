@@ -47,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
           trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(q(p['total']), style: const TextStyle(fontWeight: FontWeight.w600)),
             if ((double.tryParse('${p['saldo']}') ?? 0) > 0)
-              Text('Saldo ${q(p['saldo'])}', style: const TextStyle(color: naranjaMafry, fontSize: 12)),
+              Text('Saldo ${q(p['saldo'])}', style: const TextStyle(color: rojoMafry, fontSize: 12)),
           ]),
           onTap: () async {
             await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PedidoScreen(idPedido: p['id_pedido'] as int)));
@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(index: _tab, children: paginas),
       floatingActionButton: _tab == 0
           ? FloatingActionButton.extended(
-              backgroundColor: naranjaMafry,
+              backgroundColor: rojoMafry,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add_business),
               label: const Text('Nuevo cliente'),

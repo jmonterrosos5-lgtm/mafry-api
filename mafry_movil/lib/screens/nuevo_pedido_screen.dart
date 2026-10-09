@@ -118,7 +118,7 @@ class _NuevoPedidoScreenState extends State<NuevoPedidoScreen> {
                           child: Text('${_cantidades[p['id_producto']] ?? 0}', textAlign: TextAlign.center,
                               style: const TextStyle(fontWeight: FontWeight.w600)),
                         ),
-                        IconButton(icon: const Icon(Icons.add_circle, color: naranjaMafry), onPressed: () => _cambiar(p, 1)),
+                        IconButton(icon: const Icon(Icons.add_circle, color: rojoMafry), onPressed: () => _cambiar(p, 1)),
                       ]),
                     ),
                   Padding(
@@ -146,7 +146,7 @@ class _NuevoPedidoScreenState extends State<NuevoPedidoScreen> {
         child: Row(children: [
           Expanded(child: Text('Total aprox. ${q(_total)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: naranjaMafry),
+            style: FilledButton.styleFrom(backgroundColor: rojoMafry),
             onPressed: _cantidades.isEmpty || _enviando ? null : _enviar,
             child: Text(_enviando ? 'Enviando…' : 'Registrar pedido'),
           ),

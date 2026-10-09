@@ -25,3 +25,6 @@ Thumbs.db
 
 # Archivos temporales para borrar
 _to_delete/
+
+# Datos reales de clientes de MAFRY — no se suben al repositorio
+datos_privados/

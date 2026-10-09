@@ -197,8 +197,8 @@ VISTAS.dashboard = async () => {
   const max = Math.max(1, ...d.ventas_7_dias.map((x) => Number(x.ventas)));
   return h('div', {},
     h('div', { class: 'kpis' },
-      [['Ventas de hoy', Q(k.ventas_hoy), 'naranja'], ['Ventas del mes', Q(k.ventas_mes)], ['Cobrado en el mes', Q(k.cobrado_mes)],
-        ['Saldo por cobrar', Q(k.saldo_por_cobrar), 'naranja'], ['Pedidos pendientes', k.pedidos_pendientes], ['Visitas hoy', k.visitas_hoy],
+      [['Ventas de hoy', Q(k.ventas_hoy), 'acento'], ['Ventas del mes', Q(k.ventas_mes)], ['Cobrado en el mes', Q(k.cobrado_mes)],
+        ['Saldo por cobrar', Q(k.saldo_por_cobrar), 'acento'], ['Pedidos pendientes', k.pedidos_pendientes], ['Visitas hoy', k.visitas_hoy],
         ['Clientes activos', k.clientes_activos]]
         .map(([e, v, c]) => h('div', { class: `kpi ${c || ''}` }, h('div', { class: 'etq' }, e), h('div', { class: 'val' }, v)))),
     h('div', { class: 'rejilla' },

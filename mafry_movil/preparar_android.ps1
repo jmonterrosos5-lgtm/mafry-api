@@ -20,5 +20,7 @@ foreach ($g in @('android/app/build.gradle.kts', 'android/app/build.gradle')) {
     (Get-Content $g -Raw) -replace 'minSdk\s*=\s*flutter\.minSdkVersion', 'minSdk = 23' -replace 'minSdkVersion flutter\.minSdkVersion', 'minSdkVersion 23' | Set-Content $g -Encoding UTF8
   }
 }
+# Ícono oficial de Mafry (espiral) en todas las densidades
+Copy-Item -Path 'branding/android/mipmap-*' -Destination 'android/app/src/main/res/' -Recurse -Force
 Write-Host 'Listo. Para probar en el emulador:  flutter run'
 Write-Host 'Para generar el APK de producción:  flutter build apk --release --dart-define=API_URL=https://<su-servicio>.onrender.com'

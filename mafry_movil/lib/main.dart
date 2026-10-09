@@ -7,8 +7,8 @@ import 'config.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
-const Color azulMafry = Color(0xFF1F3864);
-const Color naranjaMafry = Color(0xFFE8700A);
+const Color azulMafry = Color(0xFF002F6D);
+const Color rojoMafry = Color(0xFFEA002A);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +65,7 @@ class _MafryAppState extends State<MafryApp> {
         title: 'MAFRY Vendedor',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: azulMafry, primary: azulMafry, secondary: naranjaMafry),
+          colorScheme: ColorScheme.fromSeed(seedColor: azulMafry, primary: azulMafry, secondary: rojoMafry),
           useMaterial3: true,
           inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
         ),
@@ -104,11 +104,11 @@ class _ArranqueScreenState extends State<ArranqueScreen> {
       backgroundColor: azulMafry,
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('MAFRY', style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: 1)),
-          SizedBox(height: 8),
+          Image(image: AssetImage('assets/logo_mafry.png'), width: 240, semanticLabel: 'Mafry'),
+          SizedBox(height: 12),
           Text('VENDEDORES DE RUTA', style: TextStyle(color: Colors.white70, letterSpacing: 2)),
           SizedBox(height: 32),
-          CircularProgressIndicator(color: naranjaMafry),
+          CircularProgressIndicator(color: rojoMafry),
         ]),
       ),
     );

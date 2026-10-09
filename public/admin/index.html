@@ -8,12 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 </head>
 <body>
   <!-- Inicio de sesión -->
   <main id="vista-login" class="login" hidden>
     <form id="form-login" class="login-card" autocomplete="on" novalidate>
-      <div class="marca">MA<span>FRY</span></div>
+      <img class="logo" src="img/logo-mafry.png" alt="Mafry" width="240" height="80">
       <p class="marca-sub">Panel administrativo</p>
       <h1>Iniciar sesión</h1>
       <div id="login-error" class="alerta error" role="alert" hidden></div>
@@ -31,7 +33,7 @@
   <!-- Aplicación -->
   <div id="vista-app" class="app" hidden>
     <aside class="lateral">
-      <div class="marca chica">MA<span>FRY</span></div>
+      <img class="logo chico" src="img/logo-mafry.png" alt="Mafry" width="150" height="50">
       <nav id="menu">
         <button data-vista="dashboard" class="activo">Dashboard</button>
         <button data-vista="pedidos">Pedidos</button>

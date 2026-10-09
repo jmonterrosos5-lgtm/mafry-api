@@ -66,14 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Form(
                   key: _form,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    const Text.rich(
-                      TextSpan(children: [
-                        TextSpan(text: 'MA', style: TextStyle(color: azulMafry)),
-                        TextSpan(text: 'FRY', style: TextStyle(color: naranjaMafry)),
-                      ]),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-                    ),
+                    Image.asset('assets/logo_mafry.png', height: 80, semanticLabel: 'Mafry'),
+                    const SizedBox(height: 8),
                     const Text('App del vendedor', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
                     const SizedBox(height: 24),
                     if (_error != null)

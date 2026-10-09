@@ -12,4 +12,6 @@ fi
 for g in android/app/build.gradle.kts android/app/build.gradle; do
   [ -f "$g" ] && sed -i -E 's/minSdk\s*=\s*flutter\.minSdkVersion/minSdk = 23/; s/minSdkVersion flutter\.minSdkVersion/minSdkVersion 23/' "$g"
 done
+# Ícono oficial de Mafry (espiral) en todas las densidades
+cp -r branding/android/mipmap-* android/app/src/main/res/
 echo "Listo."

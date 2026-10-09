@@ -88,12 +88,12 @@ class _ClienteScreenState extends State<ClienteScreen> {
         else ...[
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: naranjaMafry.withAlpha(26), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: rojoMafry.withAlpha(26), borderRadius: BorderRadius.circular(8)),
             child: Text('Visita #$_idVisita en curso · pedidos registrados: $_pedidosEnVisita'),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: naranjaMafry, padding: const EdgeInsets.symmetric(vertical: 14)),
+            style: FilledButton.styleFrom(backgroundColor: rojoMafry, padding: const EdgeInsets.symmetric(vertical: 14)),
             onPressed: _ocupado
                 ? null
                 : () async {
