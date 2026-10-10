@@ -6,6 +6,7 @@ import 'cliente_screen.dart';
 import 'nuevo_cliente_screen.dart';
 import 'pedido_screen.dart';
 import 'perfil_screen.dart';
+import 'seleccionar_cliente_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -94,7 +95,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (creado == true) _claves[0].currentState?.cargar();
               },
             )
-          : null,
+          : _tab == 1
+              ? FloatingActionButton.extended(
+                  backgroundColor: rojoMafry,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.add_shopping_cart),
+                  label: const Text('Nuevo pedido'),
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SeleccionarClienteScreen()));
+                    _claves[1].currentState?.cargar();
+                  },
+                )
+              : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) {

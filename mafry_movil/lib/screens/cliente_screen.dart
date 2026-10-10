@@ -6,8 +6,11 @@ import 'nuevo_pedido_screen.dart';
 
 /// Detalle de cliente y flujo de visita: iniciar → tomar pedido → finalizar.
 class ClienteScreen extends StatefulWidget {
-  const ClienteScreen({super.key, required this.cliente});
+  const ClienteScreen({super.key, required this.cliente, this.tomarPedido = false});
   final Map<String, dynamic> cliente;
+
+  /// Si es true (botón "Nuevo pedido"), inicia o retoma la visita y abre el pedido directamente.
+  final bool tomarPedido;
 
   @override
   State<ClienteScreen> createState() => _ClienteScreenState();
@@ -17,7 +20,48 @@ class _ClienteScreenState extends State<ClienteScreen> {
   int? _idVisita;
   int _pedidosEnVisita = 0;
   bool _ocupado = false;
+  bool _cargandoVisita = true;
   final _obs = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _prepararVisita();
+  }
+
+  /// Retoma la visita de hoy que quedó en curso para este cliente (por ejemplo, si el
+  /// vendedor salió de la pantalla), para no obligarlo a iniciar otra.
+  Future<void> _prepararVisita() async {
+    try {
+      final visitas = await Api.instancia.get('/api/visitas') as List;
+      final n = DateTime.now();
+      String dos(int x) => x.toString().padLeft(2, '0');
+      final hoy = '${n.year}-${dos(n.month)}-${dos(n.day)}';
+      for (final v in visitas.cast<Map<String, dynamic>>()) {
+        if (v['id_cliente'] == widget.cliente['id_cliente'] &&
+            v['estado'] == 'en_curso' &&
+            '${v['fecha_visita']}'.startsWith(hoy)) {
+          _idVisita = v['id_visita'] as int;
+          break;
+        }
+      }
+    } on ApiException {
+      // Sin visitas previas o sin conexión: se muestra el botón "Iniciar visita".
+    }
+    if (!mounted) return;
+    setState(() => _cargandoVisita = false);
+    if (widget.tomarPedido) {
+      if (_idVisita == null) await _iniciarVisita();
+      if (_idVisita != null && mounted) await _tomarPedido();
+    }
+  }
+
+  Future<void> _tomarPedido() async {
+    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => NuevoPedidoScreen(idVisita: _idVisita!, cliente: widget.cliente['nombre_negocio'] ?? ''),
+    ));
+    if (ok == true && mounted) setState(() => _pedidosEnVisita++);
+  }
 
   @override
   void dispose() {
@@ -78,14 +122,20 @@ class _ClienteScreenState extends State<ClienteScreen> {
           ]),
         ),
         const SizedBox(height: 16),
-        if (_idVisita == null)
+        if (_cargandoVisita)
+          const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+        else if (_idVisita == null) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text('Para tomar un pedido, primero inicie la visita al cliente.', textAlign: TextAlign.center),
+          ),
           FilledButton.icon(
             onPressed: _ocupado ? null : _iniciarVisita,
             icon: const Icon(Icons.login),
             label: const Text('Iniciar visita'),
             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-          )
-        else ...[
+          ),
+        ] else ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: rojoMafry.withAlpha(26), borderRadius: BorderRadius.circular(8)),
@@ -94,14 +144,7 @@ class _ClienteScreenState extends State<ClienteScreen> {
           const SizedBox(height: 12),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: rojoMafry, padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: _ocupado
-                ? null
-                : () async {
-                    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(
-                      builder: (_) => NuevoPedidoScreen(idVisita: _idVisita!, cliente: c['nombre_negocio'] ?? ''),
-                    ));
-                    if (ok == true) setState(() => _pedidosEnVisita++);
-                  },
+            onPressed: _ocupado ? null : _tomarPedido,
             icon: const Icon(Icons.add_shopping_cart),
             label: const Text('Tomar pedido'),
           ),
