@@ -1,7 +1,7 @@
 -- =====================================================================
 -- MAFRY · Principio de mínimo privilegio en PostgreSQL
 -- Ejecutar como superusuario/propietario DESPUÉS de schema.sql:
---   psql "$DATABASE_URL_ADMIN" -v app_password="'<contraseña-larga>'" -f db/roles.sql
+--   psql "$DATABASE_URL_ADMIN" -v app_password="'<contraseña-larga>'" -v respaldo_password="'<otra-contraseña>'" -f db/roles.sql
 -- La API se conecta con mafry_app, que NO puede borrar datos, crear/alterar
 -- tablas ni modificar la bitácora. El usuario propietario solo se usa para migraciones.
 -- En Neon se ejecuta con el usuario propietario (neondb_owner) desde el SQL Editor
@@ -32,3 +32,21 @@ TO mafry_app;
 GRANT SELECT, INSERT ON bitacora TO mafry_app;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO mafry_app;
+
+-- ---------------------------------------------------------------------
+-- Rol de solo lectura para respaldos (pg_dump) y la prueba de restauración.
+-- Se usa desde GitHub Actions (secreto NEON_RESPALDO_URL). No puede modificar nada.
+--   psql "$DATABASE_URL_ADMIN" -v app_password="'...'" -v respaldo_password="'...'" -f db/roles.sql
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mafry_respaldo') THEN
+    CREATE ROLE mafry_respaldo LOGIN;
+  END IF;
+END $$;
+
+ALTER ROLE mafry_respaldo WITH PASSWORD :respaldo_password;
+ALTER ROLE mafry_respaldo NOSUPERUSER NOCREATEDB NOCREATEROLE;
+GRANT  USAGE  ON SCHEMA public TO mafry_respaldo;
+GRANT  SELECT ON ALL TABLES    IN SCHEMA public TO mafry_respaldo;
+GRANT  SELECT ON ALL SEQUENCES IN SCHEMA public TO mafry_respaldo;

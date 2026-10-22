@@ -27,7 +27,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _enviando = true);
     try {
-      await Api.instancia.post('/api/auth/cambiar-contrasena', {'actual': _actual.text, 'nueva': _nueva.text});
+      final r = await Api.instancia.post('/api/auth/cambiar-contrasena', {'actual': _actual.text, 'nueva': _nueva.text});
+      if (r is Map && r['token'] is String) await Api.instancia.actualizarToken(r['token'] as String);
       _actual.clear();
       _nueva.clear();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contraseña actualizada')));
@@ -83,7 +84,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
       const SizedBox(height: 32),
       OutlinedButton.icon(
-        onPressed: () => Api.instancia.cerrarSesion(),
+        onPressed: () => Api.instancia.salir(),
         icon: const Icon(Icons.logout),
         label: const Text('Cerrar sesión'),
       ),

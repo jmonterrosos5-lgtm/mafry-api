@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS usuarios (
   fecha_creacion    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- Seguridad de la cuenta (v2.1): MFA para administradores y revocación de sesiones.
+-- ADD COLUMN IF NOT EXISTS permite aplicar el cambio sobre la base de producción sin perder datos.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mfa_activo           BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mfa_secreto          TEXT;     -- cifrado AES-256-GCM, nunca en claro
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mfa_secreto_pendiente TEXT;    -- mientras se configura la app autenticadora
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mfa_ultimo_contador  BIGINT;   -- impide reutilizar un mismo código
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS version_token        INTEGER NOT NULL DEFAULT 0; -- cerrar sesión invalida tokens
+
 CREATE TABLE IF NOT EXISTS vendedores (
   id_vendedor      SERIAL PRIMARY KEY,
   id_usuario       INTEGER NOT NULL UNIQUE REFERENCES usuarios(id_usuario),

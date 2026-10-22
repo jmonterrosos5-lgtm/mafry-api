@@ -1,0 +1,8 @@
+# Hallazgos revisados y aceptados (falsos positivos). Formato: commit:archivo:regla:línea
+# Token JWT falsificado A PROPÓSITO para demostrar que la API lo rechaza (firma "firma-falsa").
+3eb862e9d8b6fb881b5d2955d963925f5f20be65:scripts/demo_seguridad.sh:jwt:27
+# Contraseñas ficticias de la base de pruebas aislada (no existen en producción).
+3eb862e9d8b6fb881b5d2955d963925f5f20be65:tests/env.js:generic-api-key:7
+# Mismos hallazgos al escanear la carpeta de trabajo (sin commit):
+scripts/demo_seguridad.sh:jwt:27
+tests/env.js:generic-api-key:7

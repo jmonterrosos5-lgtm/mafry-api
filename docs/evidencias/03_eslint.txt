@@ -1,4 +1,1 @@
-
-> mafry-api@2.0.0 lint
-> eslint src tests scripts
-
+ESLint sin hallazgos (2026-10-21)

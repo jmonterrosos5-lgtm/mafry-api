@@ -28,6 +28,18 @@
       <button type="submit" class="btn primario ancho">Ingresar</button>
       <p class="nota">Acceso exclusivo para administración. Los vendedores usan la app móvil.</p>
     </form>
+    <form id="form-mfa" class="login-card" autocomplete="off" hidden>
+      <img class="logo" src="img/logo-mafry.png" alt="Mafry" width="240" height="80">
+      <p class="marca-sub">Verificación en dos pasos</p>
+      <h1>Código de verificación</h1>
+      <div id="mfa-error" class="alerta error" role="alert" hidden></div>
+      <label>Código de 6 dígitos de su app autenticadora
+        <input name="codigo" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code">
+      </label>
+      <button type="submit" class="btn primario ancho">Verificar</button>
+      <button type="button" id="mfa-cancelar" class="btn fantasma ancho">Cancelar</button>
+      <p class="nota">El código cambia cada 30 segundos.</p>
+    </form>
   </main>
 
   <!-- Aplicación -->

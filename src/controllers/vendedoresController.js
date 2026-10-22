@@ -53,7 +53,7 @@ const actualizarVendedor = async (req, res) => {
   if (result.rows.length === 0) return res.status(404).json({ error: 'Vendedor no encontrado' });
   if (activo !== undefined) {
     // Desactivar al vendedor también desactiva su usuario: sus tokens dejan de servir.
-    await pool.query('UPDATE usuarios SET activo = $1 WHERE id_usuario = $2', [activo, result.rows[0].id_usuario]);
+    await pool.query('UPDATE usuarios SET activo = $1, version_token = version_token + 1 WHERE id_usuario = $2', [activo, result.rows[0].id_usuario]);
   }
   await registrar(req, activo === false ? 'DESACTIVAR_USUARIO' : 'ACTUALIZAR', 'vendedores', Number(id), req.body);
   res.json((await pool.query(`${BASE} WHERE v.id_vendedor = $1`, [id])).rows[0]);
@@ -73,7 +73,8 @@ const desbloquearVendedor = async (req, res) => {
 const restablecerContrasena = async (req, res) => {
   const hash = await bcrypt.hash(req.body.contrasena, 12);
   const result = await pool.query(
-    `UPDATE usuarios u SET contrasena_hash = $1, intentos_fallidos = 0, bloqueado_hasta = NULL
+    `UPDATE usuarios u SET contrasena_hash = $1, intentos_fallidos = 0, bloqueado_hasta = NULL,
+            version_token = u.version_token + 1
        FROM vendedores v WHERE v.id_usuario = u.id_usuario AND v.id_vendedor = $2 RETURNING u.id_usuario`,
     [hash, req.params.id]);
   if (result.rows.length === 0) return res.status(404).json({ error: 'Vendedor no encontrado' });

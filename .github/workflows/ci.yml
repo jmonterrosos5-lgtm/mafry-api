@@ -11,6 +11,18 @@ permissions:
   contents: read
 
 jobs:
+  # Búsqueda de secretos (contraseñas, tokens, cadenas de conexión) en los commits enviados.
+  # Nace del incidente de 2026: credenciales de PostgreSQL y JWT publicadas en el repositorio.
+  secretos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   pruebas:
     runs-on: ubuntu-latest
     services:
@@ -46,7 +58,7 @@ jobs:
           path: coverage/lcov-report
 
   desplegar:
-    needs: pruebas
+    needs: [secretos, pruebas]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

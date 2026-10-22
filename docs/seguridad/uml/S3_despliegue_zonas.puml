@@ -1,0 +1,41 @@
+@startuml S3_despliegue_zonas
+title Despliegue, zonas de confianza y puertos — MAFRY
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam nodeBackgroundColor #F4F7FB
+skinparam nodeBorderColor #002F6D
+skinparam rectangleBorderThickness 2
+
+rectangle "Zona 1 · No confiable: Internet / datos móviles / Wi-Fi" as Z1 #FDECEC {
+  node "Teléfono Android del vendedor\n(APK interno)\nBloqueo de pantalla (C-30 propuesto)" as TEL
+  node "PC del administrador\n(navegador)\nEndurecimiento (C-31 propuesto)" as PC
+}
+
+rectangle "Zona 2 · Proveedor Render (región Oregón)" as Z2 #FFF4E5 {
+  node "Borde Render\nTLS con certificado gestionado\nsolo 443 público" as EDGE
+  node "Web service mafry-api\nNode.js 20 · sin SSH (plan free)\nVariables: DATABASE_URL, JWT_SECRET,\nMFA_ENC_KEY (secretos)\nhealth check: /health" as WEB
+}
+
+rectangle "Zona 3 · Proveedor Neon" as Z3 #EAF6EF {
+  node "PostgreSQL (proyecto mafry)\nTLS obligatorio · puerto 5432\nRoles: owner (migraciones),\nmafry_app (API), mafry_respaldo (lectura)\nPITR 6 h (plan free)" as NEON
+}
+
+rectangle "Zona 4 · DevSecOps (GitHub)" as Z4 #EEF1F6 {
+  node "Repositorio mafry-api\nrama main protegida (C-21)\nGitleaks · Dependabot" as REPO
+  node "GitHub Actions\nCI (lint, audit, pruebas)\nRespaldo diario 03:00\nSecrets: RENDER_DEPLOY_HOOK,\nNEON_RESPALDO_URL, RESPALDO_CLAVE" as GHA
+}
+
+TEL --> EDGE : HTTPS 443\n(JWT)
+PC --> EDGE : HTTPS 443\n(JWT + MFA)
+EDGE --> WEB : red interna Render
+WEB --> NEON : PostgreSQL/TLS 5432\ncertificado verificado (C-13)
+REPO --> GHA : push / PR
+GHA --> WEB : Deploy Hook HTTPS\n(solo si pruebas pasan)
+GHA --> NEON : TLS 5432 · rol de solo lectura\n(respaldo + prueba de restauración)
+
+note right of NEON
+  IP Allow (restringir a IPs de Render/GitHub)
+  solo existe en el plan Scale → C-29 propuesto.
+  Riesgo residual R-12/R-08 aceptado.
+end note
+@enduml

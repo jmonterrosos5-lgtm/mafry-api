@@ -23,8 +23,13 @@ const verificarToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 
+  // Solo se aceptan tokens de acceso (el token intermedio del MFA no abre la API).
+  if (payload.typ !== 'acceso') {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+
   const { rows } = await pool.query(
-    `SELECT u.id_usuario, u.rol, u.activo, v.id_vendedor
+    `SELECT u.id_usuario, u.rol, u.activo, u.version_token, v.id_vendedor
        FROM usuarios u
        LEFT JOIN vendedores v ON v.id_usuario = u.id_usuario AND v.activo = true
       WHERE u.id_usuario = $1`,
@@ -33,6 +38,10 @@ const verificarToken = async (req, res, next) => {
   const usuario = rows[0];
   if (!usuario || !usuario.activo) {
     return res.status(401).json({ error: 'Usuario inactivo' });
+  }
+  // Token revocado: la sesión se cerró, se cambió la contraseña o el admin la restableció.
+  if (payload.ver !== usuario.version_token) {
+    return res.status(401).json({ error: 'Sesión cerrada. Ingrese de nuevo.' });
   }
   if (usuario.rol === 'vendedor' && !usuario.id_vendedor) {
     return res.status(403).json({ error: 'Vendedor no habilitado' });

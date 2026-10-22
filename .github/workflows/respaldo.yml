@@ -1,0 +1,75 @@
+name: Respaldo y prueba de restauración
+
+# Cada día a las 03:00 (hora de Guatemala = 09:00 UTC), cuando no hay vendedores en ruta,
+# y también a mano desde la pestaña Actions → "Run workflow".
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Base vacía y aislada donde se restaura el respaldo (nunca se toca producción)
+      restauracion:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: mafry_restaurada
+          POSTGRES_USER: prueba
+          POSTGRES_PASSWORD: solo-prueba-restauracion
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U prueba" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Respaldo de Neon y restauración verificada
+        env:
+          # Rol de SOLO LECTURA mafry_respaldo (db/roles.sql). Se guarda en Settings → Secrets.
+          ORIGEN_URL: ${{ secrets.NEON_RESPALDO_URL }}
+          DESTINO_URL: postgresql://prueba:solo-prueba-restauracion@localhost:5432/mafry_restaurada
+        run: |
+          # Cliente PostgreSQL 17 (compatible con el servidor de Neon) desde la imagen oficial
+          docker run --rm --network host -e ORIGEN_URL -e DESTINO_URL \
+            -v "$PWD:/w" -w /w postgres:17 bash scripts/prueba_restauracion.sh /w/respaldos
+
+      - name: Cifrar el respaldo (copia fuera de Neon)
+        if: success()
+        env:
+          RESPALDO_CLAVE: ${{ secrets.RESPALDO_CLAVE }}
+        run: |
+          if [ -z "$RESPALDO_CLAVE" ]; then echo "Sin RESPALDO_CLAVE: no se guarda copia del archivo"; exit 0; fi
+          sudo chown -R "$USER" respaldos
+          for f in respaldos/*.dump; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+                --symmetric --cipher-algo AES256 -o "$f.gpg" "$f" <<< "$RESPALDO_CLAVE"
+            rm -f "$f"   # el archivo sin cifrar no sale del runner
+          done
+
+      - name: Guardar informe de la prueba
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-restauracion
+          path: |
+            respaldos/informe_restauracion_*.md
+            respaldos/*.sha256
+          retention-days: 90
+
+      - name: Guardar respaldo cifrado (7 días)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-cifrado
+          path: respaldos/*.gpg
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Resumen
+        if: always()
+        run: cat respaldos/informe_restauracion_*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "Sin informe" >> "$GITHUB_STEP_SUMMARY"

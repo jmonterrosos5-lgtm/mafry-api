@@ -64,6 +64,23 @@ class Api {
     await _almacen.write(key: 'usuario', value: jsonEncode(u));
   }
 
+  /// Cierre de sesión pedido por el usuario o por inactividad: primero se revoca
+  /// el token en el servidor (deja de servir aunque alguien lo haya copiado).
+  Future<void> salir() async {
+    try {
+      await _enviar('POST', '/api/auth/logout', {}).timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Sin señal: la sesión local se borra igual y el token expira a las 8 h.
+    }
+    if (autenticado) await cerrarSesion();
+  }
+
+  /// Al cambiar la contraseña el servidor cierra las demás sesiones y entrega un token nuevo.
+  Future<void> actualizarToken(String token) async {
+    _token = token;
+    await _almacen.write(key: 'token', value: token);
+  }
+
   Future<void> cerrarSesion({bool notificar = true}) async {
     _token = null;
     usuario = null;

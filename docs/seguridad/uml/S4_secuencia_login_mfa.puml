@@ -1,0 +1,48 @@
+@startuml S4_secuencia_login_mfa
+title Secuencia: inicio de sesión con MFA y acceso autorizado — MAFRY
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceParticipantBackgroundColor #F4F7FB
+skinparam sequenceParticipantBorderColor #002F6D
+autonumber
+
+actor Administrador as A
+participant "Panel web" as P
+participant "API (Render)" as API
+database "PostgreSQL (Neon)" as DB
+
+A -> P : correo + contraseña
+P -> API : POST /api/auth/login (HTTPS)
+API -> API : límite 10 intentos/15 min (C-04)\nvalidar formato (C-09)
+API -> DB : SELECT usuario (parametrizado)
+alt cuenta bloqueada
+  API --> P : 423 Cuenta bloqueada
+else contraseña incorrecta
+  API -> DB : intentos_fallidos+1 · bitácora LOGIN_FALLIDO
+  API --> P : 401 "Credenciales inválidas" (no revela si el correo existe)
+else contraseña correcta y MFA activo
+  API -> DB : bitácora LOGIN_CONTRASENA_OK_MFA_PENDIENTE
+  API --> P : token_mfa (5 min, tipo "mfa": NO abre la API)
+  A -> P : código de 6 dígitos (app autenticadora)
+  P -> API : POST /api/auth/mfa/verificar
+  API -> DB : descifrar secreto (AES-256-GCM) y validar TOTP\n(código no usado antes)
+  alt código incorrecto o repetido
+    API -> DB : intentos_fallidos+1 · bitácora MFA_FALLIDO
+    API --> P : 401
+  else código correcto
+    API -> DB : reiniciar intentos · bitácora LOGIN_OK {mfa:true}
+    API --> P : token de acceso (8 h, tipo "acceso", versión N)
+  end
+end
+
+== Uso posterior ==
+P -> API : GET /api/admin/bitacora (Bearer token)
+API -> DB : usuario activo y version_token = N ?
+alt token revocado (logout, cambio de clave, baja)
+  API --> P : 401 Sesión cerrada
+else rol distinto de admin
+  API --> P : 403 (C-07)
+else válido
+  API --> P : 200 datos
+end
+@enduml
