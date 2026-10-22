@@ -19,6 +19,9 @@ set -euo pipefail
 
 : "${ORIGEN_URL:?Defina ORIGEN_URL (rol mafry_respaldo)}"
 : "${DESTINO_URL:?Defina DESTINO_URL (base vacía de prueba)}"
+# Quita saltos de línea y espacios que se cuelan al pegar la cadena en un secreto
+ORIGEN_URL="$(printf '%s' "$ORIGEN_URL" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+DESTINO_URL="$(printf '%s' "$DESTINO_URL" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 SALIDA="${1:-./respaldos}"
 mkdir -p "$SALIDA"
 chmod 700 "$SALIDA"
