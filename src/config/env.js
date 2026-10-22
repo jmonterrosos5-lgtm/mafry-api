@@ -50,4 +50,8 @@ module.exports = {
   LOGIN_MAX_INTENTOS: Number(process.env.LOGIN_MAX_INTENTOS) || 5,
   LOGIN_BLOQUEO_MIN: Number(process.env.LOGIN_BLOQUEO_MIN) || 15,
   AUTO_MIGRATE: process.env.AUTO_MIGRATE === 'true',
+  // Clave para cifrar los secretos MFA en la BD (opcional; si falta se deriva de JWT_SECRET).
+  MFA_ENC_KEY: process.env.MFA_ENC_KEY || null,
+  // Minutos de validez del token intermedio entre la contraseña y el código MFA.
+  MFA_TOKEN_MIN: Number(process.env.MFA_TOKEN_MIN) || 5,
 };

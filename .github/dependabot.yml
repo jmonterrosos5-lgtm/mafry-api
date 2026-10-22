@@ -1,0 +1,17 @@
+# Revisión semanal de dependencias con vulnerabilidades conocidas (npm, Flutter y Actions).
+# Dependabot abre un Pull Request; el pipeline CI lo prueba antes de que alguien lo apruebe.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [dependencias, seguridad]
+  - package-ecosystem: pub
+    directory: /mafry_movil
+    schedule: { interval: monthly }
+    labels: [dependencias]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    labels: [dependencias]

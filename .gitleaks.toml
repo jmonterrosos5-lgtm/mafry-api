@@ -1,0 +1,21 @@
+# Configuración de Gitleaks para MAFRY: reglas por defecto + una regla propia.
+# La regla propia nace de la auditoría: las reglas por defecto NO detectaron la contraseña
+# de PostgreSQL escrita en src/config/db.js (commits 5573e94 y dbd2621, como valor fijo o
+# como valor "por defecto" después de process.env.X ||), que sí estuvo publicada.
+title = "MAFRY gitleaks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "mafry-credencial-en-codigo"
+description = "Contraseña o secreto escrito literalmente en código o configuración"
+regex = '''(?i)\b(password|contrasena|passwd|secret|jwt_secret|db_password)\b["']?\s*[:=]\s*(?:process\.env\.\w+\s*\|\|\s*)?["']([^"'\s$<{]{6,})["']'''
+secretGroup = 2
+keywords = ["password", "contrasena", "passwd", "secret"]
+
+[rules.allowlist]
+# Valores de ejemplo o vacíos en plantillas y documentación
+regexes = ['''(?i)(USUARIO|CONTRASENA|<.*>|ejemplo|example|changeme|\*\*\*)''']
+# tests/: credenciales ficticias que solo existen en la base de pruebas aislada de CI
+paths = ['''node_modules''', '''package-lock\.json''', '''^tests/''', '''^docs/historico/''']

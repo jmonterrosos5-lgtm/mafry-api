@@ -62,7 +62,7 @@ async function api(ruta, opciones = {}) {
   });
   let datos = null;
   try { datos = await res.json(); } catch { /* sin cuerpo */ }
-  if (res.status === 401 && ruta !== '/auth/login') {
+  if (res.status === 401 && !ruta.startsWith('/auth/login') && !ruta.startsWith('/auth/mfa/verificar')) {
     sesion.cerrar('Su sesión expiró. Ingrese de nuevo.');
     throw new Error('Sesión expirada');
   }
@@ -84,11 +84,27 @@ function reiniciarInactividad() {
 function mostrarLogin(mensaje) {
   $('#vista-app').hidden = true;
   $('#vista-login').hidden = false;
+  $('#form-login').hidden = false;
+  $('#form-mfa').hidden = true;
   const err = $('#login-error');
   err.hidden = !mensaje;
   err.textContent = mensaje || '';
 }
 
+function entrar(r) {
+  if (r.usuario.rol !== 'admin') {
+    mostrarLogin('Este panel es solo para administradores. Use la app móvil MAFRY Vendedor.');
+    return;
+  }
+  sesion.guardar(r.token, r.usuario);
+  iniciarApp();
+  if (!r.usuario.mfa_activo) {
+    aviso('Su cuenta aún no tiene verificación en dos pasos. Actívela en «Mi cuenta» (requisito de la política de seguridad).', true);
+  }
+}
+
+// Paso 1: correo y contraseña. Si la cuenta tiene MFA se muestra el paso 2.
+let tokenMfa = null;
 $('#form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
@@ -96,13 +112,16 @@ $('#form-login').addEventListener('submit', async (e) => {
   boton.disabled = true;
   try {
     const r = await api('/auth/login', { method: 'POST', body: { correo: f.get('correo'), contrasena: f.get('contrasena') } });
-    if (r.usuario.rol !== 'admin') {
-      mostrarLogin('Este panel es solo para administradores. Use la app móvil MAFRY Vendedor.');
+    e.target.reset();
+    if (r.mfa_requerido) {
+      tokenMfa = r.token_mfa;
+      $('#form-login').hidden = true;
+      $('#form-mfa').hidden = false;
+      $('#mfa-error').hidden = true;
+      $('#form-mfa').elements.codigo.focus();
       return;
     }
-    sesion.guardar(r.token, r.usuario);
-    e.target.reset();
-    iniciarApp();
+    entrar(r);
   } catch (err) {
     mostrarLogin(err.message);
   } finally {
@@ -110,7 +129,32 @@ $('#form-login').addEventListener('submit', async (e) => {
   }
 });
 
-$('#btn-salir').addEventListener('click', () => sesion.cerrar());
+// Paso 2: código de 6 dígitos de la app autenticadora.
+$('#form-mfa').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const boton = e.target.querySelector('button[type=submit]');
+  boton.disabled = true;
+  try {
+    const r = await api('/auth/mfa/verificar', { method: 'POST', body: { token_mfa: tokenMfa, codigo: e.target.elements.codigo.value.trim() } });
+    tokenMfa = null;
+    e.target.reset();
+    entrar(r);
+  } catch (err) {
+    const el = $('#mfa-error');
+    el.textContent = err.message;
+    el.hidden = false;
+    if (/expir|bloquead/i.test(err.message)) { tokenMfa = null; setTimeout(() => mostrarLogin(err.message), 1500); }
+  } finally {
+    boton.disabled = false;
+  }
+});
+$('#mfa-cancelar').addEventListener('click', () => { tokenMfa = null; mostrarLogin(); });
+
+// Cerrar sesión también en el servidor: el token queda revocado aunque alguien lo haya copiado.
+$('#btn-salir').addEventListener('click', async () => {
+  try { await api('/auth/logout', { method: 'POST' }); } catch { /* la sesión local se borra igual */ }
+  sesion.cerrar();
+});
 
 // ---------- navegación ----------
 const VISTAS = {};
@@ -391,16 +435,69 @@ VISTAS.cuenta = async () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      await api('/auth/cambiar-contrasena', { method: 'POST', body: { actual: form.elements.actual.value, nueva: form.elements.nueva.value } });
-      form.reset(); err.hidden = true; aviso('Contraseña actualizada');
+      const r = await api('/auth/cambiar-contrasena', { method: 'POST', body: { actual: form.elements.actual.value, nueva: form.elements.nueva.value } });
+      sesion.guardar(r.token, sesion.usuario); // las demás sesiones quedaron cerradas
+      form.reset(); err.hidden = true; aviso('Contraseña actualizada. Se cerraron las demás sesiones abiertas.');
     } catch (x) { err.textContent = x.message; err.hidden = false; }
   });
   return h('div', {},
     h('div', { class: 'panel' }, h('h3', {}, 'Datos de la cuenta'), h('div', { class: 'cuerpo' },
       h('p', {}, `${u.nombre} ${u.apellido} · ${u.correo} · rol ${u.rol}`), h('p', { class: 'nota' }, `Último acceso: ${fechaHora(u.ultimo_acceso)}`))),
+    panelMfa(u),
     h('div', { class: 'panel' }, h('h3', {}, 'Cambiar contraseña'), h('div', { class: 'cuerpo' },
       h('p', { class: 'nota' }, 'Mínimo 10 caracteres, con al menos una letra y un número.'), err, form)));
 };
+
+// Verificación en dos pasos (TOTP): Google Authenticator, Microsoft Authenticator, Authy…
+function panelMfa(u) {
+  const cuerpo = h('div', { class: 'cuerpo' });
+  const err = h('div', { class: 'alerta error', hidden: true });
+  const fallo = (x) => { err.textContent = x.message; err.hidden = false; };
+  const recargar = () => ir('cuenta');
+
+  if (u.mfa_activo) {
+    const form = h('form', { class: 'form-grid' },
+      h('label', {}, 'Contraseña', h('input', { type: 'password', name: 'contrasena', required: true, autocomplete: 'current-password' })),
+      h('label', {}, 'Código actual (6 dígitos)', h('input', { name: 'codigo', required: true, inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: 6, autocomplete: 'one-time-code' })),
+      h('div', { style: 'grid-column:1/-1' }, h('button', { class: 'btn peligro', type: 'submit' }, 'Desactivar verificación en dos pasos')));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api('/auth/mfa/desactivar', { method: 'POST', body: { contrasena: form.elements.contrasena.value, codigo: form.elements.codigo.value } });
+        sesion.cerrar('Verificación en dos pasos desactivada. Ingrese de nuevo.');
+      } catch (x) { fallo(x); }
+    });
+    cuerpo.append(h('p', {}, h('span', { class: 'chip verificado' }, 'activa'), ' Al ingresar se pide un código de 6 dígitos además de la contraseña.'),
+      h('p', { class: 'nota' }, 'Para desactivarla se exige la contraseña y un código vigente.'), err, form);
+  } else {
+    const iniciar = h('button', { class: 'btn primario', type: 'button' }, 'Configurar verificación en dos pasos');
+    iniciar.addEventListener('click', async () => {
+      try {
+        const r = await api('/auth/mfa/configurar', { method: 'POST' });
+        const form = h('form', { class: 'form-grid' },
+          h('label', {}, 'Código que muestra la app', h('input', { name: 'codigo', required: true, inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: 6, autocomplete: 'one-time-code' })),
+          h('div', { style: 'grid-column:1/-1' }, h('button', { class: 'btn primario', type: 'submit' }, 'Activar')));
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          try {
+            await api('/auth/mfa/activar', { method: 'POST', body: { codigo: form.elements.codigo.value.trim() } });
+            const usr = sesion.usuario; usr.mfa_activo = true; sesion.guardar(sesion.token, usr);
+            aviso('Verificación en dos pasos activada');
+            recargar();
+          } catch (x) { fallo(x); }
+        });
+        cuerpo.replaceChildren(
+          h('p', {}, '1. Abra Google Authenticator o Microsoft Authenticator en su teléfono y escanee este código:'),
+          h('img', { src: r.qr, alt: 'Código QR para la app autenticadora', width: 220, height: 220, class: 'qr-mfa' }),
+          h('p', { class: 'nota' }, 'Si no puede escanear, ingrese esta clave manualmente: ', h('code', {}, r.secreto.replace(/(.{4})/g, '$1 ').trim())),
+          h('p', {}, '2. Escriba el código de 6 dígitos que aparece en la app:'), err, form);
+      } catch (x) { fallo(x); }
+    });
+    cuerpo.append(h('p', {}, h('span', { class: 'chip anulado' }, 'inactiva'),
+      ' La política de seguridad exige un segundo factor para las cuentas de administrador.'), err, iniciar);
+  }
+  return h('div', { class: 'panel' }, h('h3', {}, 'Verificación en dos pasos (MFA)'), cuerpo);
+}
 
 // ---------- arranque ----------
 if (sesion.token && sesion.usuario) iniciarApp();

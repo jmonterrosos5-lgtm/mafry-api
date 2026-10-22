@@ -1,0 +1,60 @@
+@startuml S1_casos_uso_seguridad
+title Casos de uso con privilegios y operaciones restringidas — MAFRY
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam usecase {
+  BackgroundColor #F4F7FB
+  BorderColor #002F6D
+  BackgroundColor<<restringido>> #FDECEC
+  BorderColor<<restringido>> #B42318
+  BackgroundColor<<propio>> #EAF6EF
+  BorderColor<<propio>> #1E8B4D
+}
+skinparam actorBorderColor #002F6D
+left to right direction
+
+actor "Vendedor de ruta\n(rol vendedor)" as VEN
+actor "Administrador\n(rol admin + MFA)" as ADM
+actor "Supervisor\n(rol previsto, solo lectura)" as SUP #DDDDDD
+
+rectangle "Sistema MAFRY" {
+  usecase "Iniciar sesión\n(contraseña + bloqueo 5 intentos)\nRS-01..03 · C-03, C-04" as UC_LOGIN
+  usecase "Verificar código MFA\n(TOTP, no reutilizable)\nRS-04 · C-05" as UC_MFA <<restringido>>
+  usecase "Cerrar sesión\n(revoca el token)\nRS-05 · C-06" as UC_OUT
+
+  usecase "Consultar SUS clientes,\nvisitas, pedidos y cobros\nRS-07 · C-08" as UC_PROPIOS <<propio>>
+  usecase "Registrar visita y pedido\n(total calculado en servidor)\nRS-09 · C-10" as UC_PED <<propio>>
+  usecase "Registrar cobro\n(≤ saldo pendiente)\nRS-09 · C-10" as UC_COB <<propio>>
+
+  usecase "Confirmar / anular pedido" as UC_CONF <<restringido>>
+  usecase "Verificar / anular cobro\n(segregación de funciones)" as UC_VERIF <<restringido>>
+  usecase "Cambiar precios y catálogo\n(auditado: valor anterior y nuevo)" as UC_PREC <<restringido>>
+  usecase "Alta, baja, desbloqueo y\nrestablecer clave de vendedores" as UC_USR <<restringido>>
+  usecase "Consultar bitácora de auditoría\n(inmutable) RS-11 · C-12" as UC_BIT <<restringido>>
+  usecase "Ver dashboard de ventas" as UC_DASH <<restringido>>
+}
+
+VEN --> UC_LOGIN
+VEN --> UC_OUT
+VEN --> UC_PROPIOS
+VEN --> UC_PED
+VEN --> UC_COB
+
+ADM --> UC_LOGIN
+ADM --> UC_OUT
+UC_LOGIN ..> UC_MFA : <<include>>\n(solo cuentas con MFA)
+ADM --> UC_CONF
+ADM --> UC_VERIF
+ADM --> UC_PREC
+ADM --> UC_USR
+ADM --> UC_BIT
+ADM --> UC_DASH
+SUP ..> UC_DASH : previsto
+
+note right of UC_CONF
+  Operaciones en rojo: solo rol admin (RS-06, C-07).
+  Un vendedor recibe 403 y el intento queda en la API.
+  Acceso a datos de OTRO vendedor → 404 (R-03).
+end note
+@enduml

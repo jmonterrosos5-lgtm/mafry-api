@@ -35,7 +35,9 @@ Con Docker: `docker compose up --build` (requiere `POSTGRES_PASSWORD` y `JWT_SEC
 | Método | Ruta | Rol |
 |---|---|---|
 | POST | `/api/auth/login` | público (limitado a 10 intentos / 15 min) |
-| GET | `/api/auth/perfil` · POST `/api/auth/cambiar-contrasena` | autenticado |
+| POST | `/api/auth/mfa/verificar` (segundo paso del login con MFA) | público (mismo límite) |
+| GET | `/api/auth/perfil` · POST `/api/auth/cambiar-contrasena` · POST `/api/auth/logout` | autenticado |
+| POST | `/api/auth/mfa/configurar` · `/mfa/activar` · `/mfa/desactivar` | admin |
 | GET/POST | `/api/clientes` · GET `/api/clientes/:id` | vendedor (solo los suyos) / admin |
 | PUT | `/api/clientes/:id` | admin |
 | GET/POST/PUT | `/api/visitas` | vendedor (solo las suyas) |
@@ -49,15 +51,18 @@ Con Docker: `docker compose up --build` (requiere `POSTGRES_PASSWORD` y `JWT_SEC
 ## Controles de seguridad
 - Secretos solo en variables de entorno; `.gitignore` excluye `.env`, respaldos y llaves.
 - Contraseñas con bcrypt (costo 12), política de 10+ caracteres, bloqueo tras 5 intentos.
-- JWT HS256 con emisor y expiración de 8 h; usuario desactivado pierde acceso al instante.
+- JWT HS256 con emisor, tipo y expiración de 8 h; usuario desactivado pierde acceso al instante.
+- Verificación en dos pasos (TOTP, RFC 6238) para administradores; secreto cifrado con AES-256-GCM; códigos no reutilizables.
+- Cierre de sesión en el servidor (revocación de tokens) al salir, cambiar o restablecer la contraseña.
 - RBAC (admin / vendedor) y filtro por propietario en cada consulta (anti-IDOR).
 - Validación de entradas con express-validator; consultas parametrizadas (anti-SQLi).
 - Precios y totales calculados en el servidor; transacciones con bloqueo de filas.
 - Helmet (CSP, HSTS, nosniff, frame-ancestors), CORS restringido, límite de 100 KB por solicitud.
 - Errores genéricos al cliente con id de solicitud; detalle solo en logs.
 - Bitácora de auditoría inmutable (trigger en PostgreSQL).
-- Conexión a Neon con TLS y verificación de certificado; rol `mafry_app` con mínimo privilegio (`db/roles.sql`); respaldos con verificación SHA-256 (`scripts/backup.sh`).
-- Pipeline: ESLint, `npm audit`, búsqueda de secretos, pruebas y despliegue solo si todo pasa.
+- Conexión a Neon con TLS y verificación de certificado; rol `mafry_app` con mínimo privilegio (`db/roles.sql`); rol `mafry_respaldo` de solo lectura; respaldo diario con prueba de restauración verificada tabla por tabla (`scripts/prueba_restauracion.sh`, workflow *Respaldo y prueba de restauración*).
+- Pipeline: Gitleaks (secretos), ESLint, `npm audit`, pruebas y despliegue solo si todo pasa; Dependabot semanal; plantilla de Pull Request con registro de cambio.
+- Política de seguridad y reporte de vulnerabilidades: ver `SECURITY.md`.
 
 ## Equipo
 Universidad Mariano Gálvez de Guatemala — Ingeniería en Sistemas · Seminario / Seguridad y Auditoría de Sistemas

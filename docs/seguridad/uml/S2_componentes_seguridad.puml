@@ -1,0 +1,53 @@
+@startuml S2_componentes_seguridad
+title Componentes críticos e interfaces seguras — MAFRY
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam component {
+  BackgroundColor #F4F7FB
+  BorderColor #002F6D
+  BackgroundColor<<control>> #FFF4E5
+  BorderColor<<control>> #E8700A
+}
+skinparam databaseBackgroundColor #EAF6EF
+skinparam databaseBorderColor #1E8B4D
+
+package "Clientes (zona no confiable)" {
+  component "App MAFRY Vendedor\n(Flutter/Android)\nToken en Keystore cifrado\nSolo HTTPS · inactividad 30 min" as APP
+  component "Panel administrativo\n(navegador)\nsessionStorage · CSP\ninactividad 30 min" as PANEL
+}
+
+package "API REST · Node.js/Express (Render)" {
+  component "Helmet + CORS\n(CSP, HSTS, nosniff)\nC-14" as HELM <<control>>
+  component "Límite de solicitudes\n300/15 min · login 10/15 min\nC-04" as RL <<control>>
+  component "Validación de entradas\n(express-validator)\nC-09" as VAL <<control>>
+  component "Autenticación JWT\n(firma, emisor, tipo, versión)\nC-06" as AUTH <<control>>
+  component "MFA TOTP\n(AES-256-GCM, anti-repetición)\nC-05" as MFA <<control>>
+  component "Autorización\nRBAC + filtro por propietario\nC-07, C-08" as RBAC <<control>>
+  component "Controladores de negocio\n(pedidos, cobros, clientes…)\nconsultas parametrizadas" as CTRL
+  component "Bitácora de auditoría\nC-12" as BIT <<control>>
+  component "Manejador de errores\n(mensaje genérico + id)\nC-11" as ERR <<control>>
+}
+
+database "PostgreSQL (Neon)\nCHECK · FK · triggers\nrol mafry_app sin DELETE/DDL\nC-10, C-15" as DB
+
+interface "HTTPS + Bearer JWT" as I1
+APP -- I1
+PANEL -- I1
+I1 --> HELM
+HELM --> RL
+RL --> VAL
+VAL --> AUTH
+AUTH --> MFA : login de admin
+AUTH --> RBAC
+RBAC --> CTRL
+CTRL --> BIT
+CTRL ..> ERR : excepciones
+CTRL --> DB : SQL parametrizado\nsobre TLS verificado (C-13)
+BIT --> DB : solo INSERT
+
+note bottom of DB
+  Activo A-05 (Base de datos) · Riesgos R-04, R-07, R-08
+  Requisitos RS-08, RS-09, RS-11, RS-14
+end note
+@enduml

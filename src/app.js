@@ -48,7 +48,7 @@ app.use(express.json({ limit: '100kb' }));
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ estado: 'ok', bd: 'ok', version: '2.0.0' });
+    res.json({ estado: 'ok', bd: 'ok', version: '2.1.0' });
   } catch {
     res.status(503).json({ estado: 'degradado', bd: 'sin conexión' });
   }

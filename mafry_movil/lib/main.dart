@@ -51,7 +51,7 @@ class _MafryAppState extends State<MafryApp> {
     if (!Api.instancia.autenticado) return;
     _inactividad?.cancel();
     _inactividad = Timer(const Duration(minutes: minutosInactividad), () {
-      if (Api.instancia.autenticado) Api.instancia.cerrarSesion();
+      if (Api.instancia.autenticado) Api.instancia.salir();
     });
   }
 
