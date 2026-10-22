@@ -38,13 +38,18 @@ jobs:
           docker run --rm --network host -e ORIGEN_URL -e DESTINO_URL \
             -v "$PWD:/w" -w /w postgres:17 bash scripts/prueba_restauracion.sh /w/respaldos
 
+      # El contenedor escribe como root: se devuelven los archivos al usuario del runner
+      # (siempre, también si la prueba falló, para poder subir el informe).
+      - name: Permisos de la carpeta de respaldos
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" respaldos 2>/dev/null || mkdir -p respaldos
+
       - name: Cifrar el respaldo (copia fuera de Neon)
         if: success()
         env:
           RESPALDO_CLAVE: ${{ secrets.RESPALDO_CLAVE }}
         run: |
           if [ -z "$RESPALDO_CLAVE" ]; then echo "Sin RESPALDO_CLAVE: no se guarda copia del archivo"; exit 0; fi
-          sudo chown -R "$USER" respaldos
           for f in respaldos/*.dump; do
             gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
                 --symmetric --cipher-algo AES256 -o "$f.gpg" "$f" <<< "$RESPALDO_CLAVE"
@@ -59,6 +64,7 @@ jobs:
           path: |
             respaldos/informe_restauracion_*.md
             respaldos/*.sha256
+          if-no-files-found: ignore
           retention-days: 90
 
       - name: Guardar respaldo cifrado (7 días)
