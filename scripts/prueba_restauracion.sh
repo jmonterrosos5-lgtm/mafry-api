@@ -16,6 +16,10 @@
 # Las cadenas de conexión no se imprimen nunca.
 # =====================================================================
 set -euo pipefail
+# Misma zona horaria en origen y destino: las fechas con zona (timestamptz) se
+# convierten a texto igual en ambos lados y la huella MD5 se puede comparar.
+# (Neon usa America/Guatemala; la base de prueba, UTC.)
+export PGTZ=UTC
 
 : "${ORIGEN_URL:?Defina ORIGEN_URL (rol mafry_respaldo)}"
 : "${DESTINO_URL:?Defina DESTINO_URL (base vacía de prueba)}"
