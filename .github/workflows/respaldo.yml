@@ -53,7 +53,7 @@ jobs:
 
       - name: Guardar informe de la prueba
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: informe-restauracion
           path: |
@@ -63,7 +63,7 @@ jobs:
 
       - name: Guardar respaldo cifrado (7 días)
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: respaldo-cifrado
           path: respaldos/*.gpg
