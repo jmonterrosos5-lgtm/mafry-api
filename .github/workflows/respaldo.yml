@@ -26,7 +26,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U prueba" --health-interval 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Respaldo de Neon y restauración verificada
         env:
