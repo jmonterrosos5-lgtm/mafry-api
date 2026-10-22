@@ -47,7 +47,8 @@ huella() {  # $1 = url, $2 = archivo de salida  → "tabla|filas|md5"
   : > "$out"
   while read -r t; do
     [ -z "$t" ] && continue
-    psql "$url" -XAtqc "SELECT '$t' || '|' || count(*) || '|' || coalesce(md5(string_agg(x::text, '¦' ORDER BY x::text)), '-') FROM public.\"$t\" x" >> "$out"
+    # SET TIME ZONE en la misma sesión: el proxy de Neon no aplica PGTZ al conectar
+    psql "$url" -XAtq -c "SET TIME ZONE 'UTC'" -c "SELECT '$t' || '|' || count(*) || '|' || coalesce(md5(string_agg(x::text, '¦' ORDER BY x::text)), '-') FROM public.\"$t\" x" >> "$out"
   done < "$TMP/tablas"
 }
 
