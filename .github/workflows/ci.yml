@@ -52,7 +52,7 @@ jobs:
         run: npm run test:ci
       - name: Publicar cobertura
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cobertura
           path: coverage/lcov-report

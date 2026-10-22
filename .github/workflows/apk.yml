@@ -34,7 +34,7 @@ jobs:
       - name: Compilar APK release
         # La URL pública de la API se guarda como variable del repositorio (Settings → Variables)
         run: flutter build apk --release --dart-define=API_URL=${{ vars.MAFRY_API_URL }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mafry-vendedor-apk
           path: mafry_movil/build/app/outputs/flutter-apk/app-release.apk
