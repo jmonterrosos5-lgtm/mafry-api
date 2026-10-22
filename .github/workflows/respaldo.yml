@@ -17,7 +17,7 @@ jobs:
     services:
       # Base vacía y aislada donde se restaura el respaldo (nunca se toca producción)
       restauracion:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: mafry_restaurada
           POSTGRES_USER: prueba
@@ -34,9 +34,9 @@ jobs:
           ORIGEN_URL: ${{ secrets.NEON_RESPALDO_URL }}
           DESTINO_URL: postgresql://prueba:solo-prueba-restauracion@localhost:5432/mafry_restaurada
         run: |
-          # Cliente PostgreSQL 17 (compatible con el servidor de Neon) desde la imagen oficial
+          # Cliente PostgreSQL 18: pg_dump debe ser igual o más nuevo que el servidor de Neon (18.x) desde la imagen oficial
           docker run --rm --network host -e ORIGEN_URL -e DESTINO_URL \
-            -v "$PWD:/w" -w /w postgres:17 bash scripts/prueba_restauracion.sh /w/respaldos
+            -v "$PWD:/w" -w /w postgres:18 bash scripts/prueba_restauracion.sh /w/respaldos
 
       # El contenedor escribe como root: se devuelven los archivos al usuario del runner
       # (siempre, también si la prueba falló, para poder subir el informe).
