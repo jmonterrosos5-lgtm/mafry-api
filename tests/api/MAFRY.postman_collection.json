@@ -1,0 +1,1451 @@
+{
+  "info": {
+    "_postman_id": "7a970081-27d2-46b5-8720-1918056110ba",
+    "name": "MAFRY API — Pruebas de API (Fase 2 ACS)",
+    "description": "Pruebas de API (no unitarias) de la API REST de MAFRY. Cada solicitud tiene aserciones automáticas de código de respuesta, esquema JSON y contenido. Se ejecuta en el pipeline con Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Salud del servicio",
+      "description": "Verifica que la API y la base de datos respondan antes de las demás pruebas.",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema: estado y bd', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['estado', 'bd', 'version'],",
+                  "  properties: { estado: { const: 'ok' }, bd: { const: 'ok' }, version: { type: 'string' } } }));",
+                  "pm.test('Tiempo de respuesta < 2000 ms', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Autenticación (RF-01, RF-11, RNF-03)",
+      "description": "Inicio de sesión, validaciones y control de acceso.",
+      "item": [
+        {
+          "name": "Login administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaLogin = { type: 'object', required: ['token', 'usuario'], properties: {",
+                  "  token: { type: 'string', pattern: '^[\\\\w-]+\\\\.[\\\\w-]+\\\\.[\\\\w-]+$' },",
+                  "  usuario: { type: 'object', required: ['id_usuario', 'nombre', 'correo', 'rol'], properties: {",
+                  "    id_usuario: { type: 'integer' }, nombre: { type: 'string' }, correo: { type: 'string' },",
+                  "    rol: { enum: ['admin', 'vendedor', 'supervisor'] } } } } };",
+                  "pm.test('Esquema de la respuesta de login', () => pm.response.to.have.jsonSchema(esquemaLogin));",
+                  "pm.test('No expone el hash de la contraseña', () => pm.expect(pm.response.json().usuario).to.not.have.property('contrasena_hash'));",
+                  "const r = pm.response.json();",
+                  "pm.test('Rol admin', () => pm.expect(r.usuario.rol).to.eql('admin'));",
+                  "pm.collectionVariables.set('adminToken', r.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{adminCorreo}}\",\n  \"contrasena\": \"{{adminContrasena}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login vendedor (VEN-001)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaLogin = { type: 'object', required: ['token', 'usuario'], properties: {",
+                  "  token: { type: 'string', pattern: '^[\\\\w-]+\\\\.[\\\\w-]+\\\\.[\\\\w-]+$' },",
+                  "  usuario: { type: 'object', required: ['id_usuario', 'nombre', 'correo', 'rol'], properties: {",
+                  "    id_usuario: { type: 'integer' }, nombre: { type: 'string' }, correo: { type: 'string' },",
+                  "    rol: { enum: ['admin', 'vendedor', 'supervisor'] } } } } };",
+                  "pm.test('Esquema de la respuesta de login', () => pm.response.to.have.jsonSchema(esquemaLogin));",
+                  "pm.test('No expone el hash de la contraseña', () => pm.expect(pm.response.json().usuario).to.not.have.property('contrasena_hash'));",
+                  "const r = pm.response.json();",
+                  "pm.test('Rol vendedor con código VEN-001', () => { pm.expect(r.usuario.rol).to.eql('vendedor'); pm.expect(r.usuario.codigo_vendedor).to.eql('VEN-001'); });",
+                  "pm.test('JWT expira en 8 horas (RNF-03)', () => {",
+                  "  const p = JSON.parse(atob(r.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));",
+                  "  pm.expect(p.exp - p.iat).to.eql(28800);",
+                  "});",
+                  "pm.collectionVariables.set('vendToken', r.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{vendCorreo}}\",\n  \"contrasena\": \"{{vendContrasena}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login con contraseña incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: Credenciales inválidas', () => pm.expect(pm.response.json().error).to.eql(\"Credenciales inválidas\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{vend2Correo}}\",\n  \"contrasena\": \"ClaveIncorrecta999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login con correo mal formado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: Datos inválidos', () => pm.expect(pm.response.json().error).to.eql(\"Datos inválidos\"));",
+                  "pm.test('Indica el campo inválido', () => pm.expect(pm.response.json().campos.map(c => c.campo)).to.include('correo'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"no-es-correo\",\n  \"contrasena\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Perfil sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: Token requerido', () => pm.expect(pm.response.json().error).to.eql(\"Token requerido\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/perfil",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "perfil"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Perfil del vendedor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema del perfil', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['id_usuario', 'correo', 'rol', 'id_vendedor'],",
+                  "  properties: { id_usuario: { type: 'integer' }, correo: { type: 'string' }, rol: { const: 'vendedor' }, id_vendedor: { type: 'integer' } } }));",
+                  "pm.test('Correo coincide con el login', () => pm.expect(pm.response.json().correo).to.eql(pm.environment.get('vendCorreo') || pm.collectionVariables.get('vendCorreo')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/perfil",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "perfil"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Catálogo y clientes",
+      "description": "Datos necesarios para el flujo de negocio.",
+      "item": [
+        {
+          "name": "Listar productos activos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const lista = pm.response.json();",
+                  "pm.test('Esquema: arreglo de productos', () => pm.response.to.have.jsonSchema({ type: 'array', minItems: 1, items: { type: 'object',",
+                  "  required: ['id_producto', 'nombre', 'precio_unitario', 'stock_disponible', 'activo'],",
+                  "  properties: { id_producto: { type: 'integer' }, nombre: { type: 'string' }, precio_unitario: { type: 'string' },",
+                  "    stock_disponible: { type: 'integer' }, activo: { const: true } } } }));",
+                  "const p = lista.find(x => x.stock_disponible >= 10);",
+                  "pm.test('Hay un producto con stock suficiente para el flujo', () => pm.expect(p).to.be.an('object'));",
+                  "pm.collectionVariables.set('idProducto', p.id_producto);",
+                  "pm.collectionVariables.set('precioProducto', p.precio_unitario);",
+                  "pm.collectionVariables.set('stockInicial', p.stock_disponible);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar categorías",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema: arreglo de categorías', () => pm.response.to.have.jsonSchema({ type: 'array', minItems: 1,",
+                  "  items: { type: 'object', required: ['id_categoria', 'nombre'] } }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "categorias"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar clientes del vendedor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const lista = pm.response.json();",
+                  "pm.test('Esquema: arreglo de clientes', () => pm.response.to.have.jsonSchema({ type: 'array', minItems: 1, items: { type: 'object',",
+                  "  required: ['id_cliente', 'nombre_negocio'], properties: { id_cliente: { type: 'integer' }, nombre_negocio: { type: 'string' } } } }));",
+                  "pm.collectionVariables.set('idCliente', lista.find(c => c.activo !== false).id_cliente);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Flujo de negocio: visita → pedido → entrega → cobro",
+      "description": "Flujo completo encadenado: cada solicitud usa variables guardadas por la anterior (idVisita, idPedido, totalPedido, idCobro).",
+      "item": [
+        {
+          "name": "1. Iniciar visita al cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const v = pm.response.json();",
+                  "pm.test('Esquema de la visita', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['id_visita', 'id_cliente', 'estado'],",
+                  "  properties: { id_visita: { type: 'integer' }, id_cliente: { type: 'integer' }, estado: { const: 'en_curso' } } }));",
+                  "pm.test('Visita del cliente seleccionado', () => pm.expect(v.id_cliente).to.eql(Number(pm.collectionVariables.get('idCliente'))));",
+                  "pm.collectionVariables.set('idVisita', v.id_visita);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/visitas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "visitas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_cliente\": \"{{idCliente}}\",\n  \"observaciones\": \"Visita creada por Newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2. Crear pedido (precio manipulado por el cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaPedido = { type: 'object', required: ['id_pedido', 'id_visita', 'estado', 'total', 'saldo'], properties: {",
+                  "  id_pedido: { type: 'integer' }, id_visita: { type: 'integer' },",
+                  "  estado: { enum: ['pendiente', 'confirmado', 'entregado', 'anulado'] },",
+                  "  total: { type: 'string' }, saldo: { type: 'string' } } };",
+                  "const p = pm.response.json();",
+                  "pm.test('Esquema del pedido', () => pm.response.to.have.jsonSchema(esquemaPedido));",
+                  "pm.test('Estado inicial pendiente', () => pm.expect(p.estado).to.eql('pendiente'));",
+                  "const esperado = (Number(pm.collectionVariables.get('precioProducto')) * 4).toFixed(2);",
+                  "pm.test('Total = precio de CATÁLOGO × 4 (ignora el precio enviado)', () => pm.expect(Number(p.total).toFixed(2)).to.eql(esperado));",
+                  "pm.test('Saldo inicial = total', () => pm.expect(p.saldo).to.eql(p.total));",
+                  "pm.collectionVariables.set('idPedido', p.id_pedido);",
+                  "pm.collectionVariables.set('totalPedido', p.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_visita\": \"{{idVisita}}\",\n  \"metodo_pago\": \"efectivo\",\n  \"items\": [\n    {\n      \"id_producto\": \"{{idProducto}}\",\n      \"cantidad\": 4,\n      \"precio_unitario\": 0.01\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3. Verificar descuento de inventario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema del producto', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['id_producto', 'stock_disponible'] }));",
+                  "pm.test('Stock disminuyó en 4 unidades', () =>",
+                  "  pm.expect(pm.response.json().stock_disponible).to.eql(Number(pm.collectionVariables.get('stockInicial')) - 4));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{idProducto}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{idProducto}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Consultar detalle del pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaPedido = { type: 'object', required: ['id_pedido', 'id_visita', 'estado', 'total', 'saldo'], properties: {",
+                  "  id_pedido: { type: 'integer' }, id_visita: { type: 'integer' },",
+                  "  estado: { enum: ['pendiente', 'confirmado', 'entregado', 'anulado'] },",
+                  "  total: { type: 'string' }, saldo: { type: 'string' } } };",
+                  "const p = pm.response.json();",
+                  "pm.test('Esquema del pedido con detalles', () => pm.response.to.have.jsonSchema({ ...esquemaPedido, required: [...esquemaPedido.required, 'detalles'] }));",
+                  "pm.test('Un renglón con 4 unidades', () => { pm.expect(p.detalles).to.have.lengthOf(1); pm.expect(p.detalles[0].cantidad).to.eql(4); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idPedido}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idPedido}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Admin confirma el pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Estado confirmado', () => pm.expect(pm.response.json().estado).to.eql('confirmado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idPedido}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idPedido}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"confirmado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "6. Admin marca el pedido como entregado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Estado entregado', () => pm.expect(pm.response.json().estado).to.eql('entregado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idPedido}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idPedido}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"entregado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "7. Cobro mayor al saldo (rechazado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje indica el saldo pendiente', () => pm.expect(pm.response.json().error).to.include('excede el saldo pendiente'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_pedido\": \"{{idPedido}}\",\n  \"monto\": 999999,\n  \"metodo\": \"efectivo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "8. Transferencia sin referencia (rechazado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: La referencia es obligatoria para transferencia o cheque', () => pm.expect(pm.response.json().error).to.eql(\"La referencia es obligatoria para transferencia o cheque\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_pedido\": \"{{idPedido}}\",\n  \"monto\": 1,\n  \"metodo\": \"transferencia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "9. Cobro parcial en efectivo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaCobro = { type: 'object', required: ['id_cobro', 'id_pedido', 'monto', 'metodo', 'estado'], properties: {",
+                  "  id_cobro: { type: 'integer' }, id_pedido: { type: 'integer' }, monto: { type: 'string' },",
+                  "  metodo: { enum: ['efectivo', 'transferencia', 'cheque'] }, estado: { enum: ['cobrado', 'verificado', 'anulado'] } } };",
+                  "const c = pm.response.json();",
+                  "pm.test('Esquema del cobro', () => pm.response.to.have.jsonSchema(esquemaCobro));",
+                  "pm.test('Estado cobrado y monto correcto', () => { pm.expect(c.estado).to.eql('cobrado'); pm.expect(Number(c.monto)).to.eql(Number(pm.collectionVariables.get('montoParcial'))); });",
+                  "pm.collectionVariables.set('idCobro', c.id_cobro);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const total = Number(pm.collectionVariables.get('totalPedido'));",
+                  "pm.collectionVariables.set('montoParcial', (Math.floor(total * 50) / 100).toFixed(2));",
+                  "pm.collectionVariables.set('montoResto', (total - Math.floor(total * 50) / 100).toFixed(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_pedido\": \"{{idPedido}}\",\n  \"monto\": \"{{montoParcial}}\",\n  \"metodo\": \"efectivo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "10. Cobro del saldo restante por transferencia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaCobro = { type: 'object', required: ['id_cobro', 'id_pedido', 'monto', 'metodo', 'estado'], properties: {",
+                  "  id_cobro: { type: 'integer' }, id_pedido: { type: 'integer' }, monto: { type: 'string' },",
+                  "  metodo: { enum: ['efectivo', 'transferencia', 'cheque'] }, estado: { enum: ['cobrado', 'verificado', 'anulado'] } } };",
+                  "pm.test('Esquema del cobro', () => pm.response.to.have.jsonSchema(esquemaCobro));",
+                  "pm.test('Guarda la referencia', () => pm.expect(pm.response.json().referencia).to.eql('TRF-NEWMAN-001'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_pedido\": \"{{idPedido}}\",\n  \"monto\": \"{{montoResto}}\",\n  \"metodo\": \"transferencia\",\n  \"referencia\": \"TRF-NEWMAN-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "11. Pedido queda con saldo cero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaPedido = { type: 'object', required: ['id_pedido', 'id_visita', 'estado', 'total', 'saldo'], properties: {",
+                  "  id_pedido: { type: 'integer' }, id_visita: { type: 'integer' },",
+                  "  estado: { enum: ['pendiente', 'confirmado', 'entregado', 'anulado'] },",
+                  "  total: { type: 'string' }, saldo: { type: 'string' } } };",
+                  "pm.test('Esquema del pedido', () => pm.response.to.have.jsonSchema(esquemaPedido));",
+                  "pm.test('Saldo = 0.00', () => pm.expect(Number(pm.response.json().saldo)).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idPedido}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idPedido}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "12. Admin verifica el cobro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const esquemaCobro = { type: 'object', required: ['id_cobro', 'id_pedido', 'monto', 'metodo', 'estado'], properties: {",
+                  "  id_cobro: { type: 'integer' }, id_pedido: { type: 'integer' }, monto: { type: 'string' },",
+                  "  metodo: { enum: ['efectivo', 'transferencia', 'cheque'] }, estado: { enum: ['cobrado', 'verificado', 'anulado'] } } };",
+                  "pm.test('Esquema del cobro', () => pm.response.to.have.jsonSchema(esquemaCobro));",
+                  "pm.test('Estado verificado', () => pm.expect(pm.response.json().estado).to.eql('verificado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros/{{idCobro}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros",
+                "{{idCobro}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"verificado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "13. No se puede anular un pedido entregado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: No se puede pasar de \"entregado\" a \"anulado\"', () => pm.expect(pm.response.json().error).to.eql(\"No se puede pasar de \\\"entregado\\\" a \\\"anulado\\\"\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{idPedido}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{idPedido}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"anulado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Autorización y seguridad",
+      "description": "Casos negativos de control de acceso.",
+      "item": [
+        {
+          "name": "Vendedor no accede al dashboard de admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "dashboard"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pedido inexistente o ajeno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: Pedido no encontrado', () => pm.expect(pm.response.json().error).to.eql(\"Pedido no encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin no puede registrar cobros (segregación)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cobros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cobros"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_pedido\": \"{{idPedido}}\",\n  \"monto\": 1,\n  \"metodo\": \"efectivo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Dashboard del administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema del dashboard', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['kpi'] }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "dashboard"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cerrar sesión del vendedor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Mensaje de cierre', () => pm.expect(pm.response.json().mensaje).to.eql('Sesión cerrada'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Token revocado ya no sirve",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código de respuesta 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Content-Type es application/json (RNF-06)', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('Esquema de error', () => pm.response.to.have.jsonSchema({ type: 'object', required: ['error'], properties: { error: { type: 'string' } } }));",
+                  "pm.test('Mensaje: Sesión cerrada. Ingrese de nuevo.', () => pm.expect(pm.response.json().error).to.eql(\"Sesión cerrada. Ingrese de nuevo.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/perfil",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "perfil"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "vendToken",
+      "value": ""
+    },
+    {
+      "key": "idProducto",
+      "value": ""
+    },
+    {
+      "key": "precioProducto",
+      "value": ""
+    },
+    {
+      "key": "stockInicial",
+      "value": ""
+    },
+    {
+      "key": "idCliente",
+      "value": ""
+    },
+    {
+      "key": "idVisita",
+      "value": ""
+    },
+    {
+      "key": "idPedido",
+      "value": ""
+    },
+    {
+      "key": "totalPedido",
+      "value": ""
+    },
+    {
+      "key": "montoParcial",
+      "value": ""
+    },
+    {
+      "key": "montoResto",
+      "value": ""
+    },
+    {
+      "key": "idCobro",
+      "value": ""
+    }
+  ]
+}
