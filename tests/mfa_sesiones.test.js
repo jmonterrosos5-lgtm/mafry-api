@@ -51,7 +51,9 @@ describe('Verificación en dos pasos (MFA) para administradores', () => {
 
   test('se activa con el código correcto del autenticador', async () => {
     const codigo = totp.codigoEn(secreto, totp.contadorActual() - 1);
-    await api().post('/api/auth/mfa/activar').set(auth(t)).send({ codigo }).expect(200);
+    const r = await api().post('/api/auth/mfa/activar').set(auth(t)).send({ codigo });
+    expect(r.status).toBe(200);
+    expect(r.body.mensaje).toBe('Verificación en dos pasos activada');
   });
 
   test('con MFA activo, la contraseña sola NO entrega token de acceso', async () => {
