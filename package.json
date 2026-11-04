@@ -14,7 +14,7 @@
     "audit": "npm audit --audit-level=high --omit=dev",
     "test:unit": "jest --config jest.unit.config.js",
     "test:integration": "jest --runInBand",
-    "test:api": "newman run tests/api/MAFRY.postman_collection.json -e tests/api/local.postman_environment.json --reporters cli,junit --reporter-junit-export reports/newman-junit.xml"
+    "test:api": "node tests/api/ejecutar.js"
   },
   "engines": {
     "node": ">=18"

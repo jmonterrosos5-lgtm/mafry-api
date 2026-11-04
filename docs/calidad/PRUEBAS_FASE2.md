@@ -68,7 +68,8 @@ login → listar productos y clientes → **iniciar visita → crear pedido → 
 confirmar → entregar → cobro rechazado (excede saldo) → cobro rechazado (sin referencia) →
 cobro parcial → cobro del resto → saldo 0 → verificar cobro → anular entregado (rechazado)**.
 
-En el pipeline, la API se levanta dentro del job con un PostgreSQL de servicio, se crean el esquema y
+En el pipeline, la API se levanta dentro del job con un PostgreSQL de servicio (sin contraseña; las
+contraseñas de prueba y el JWT_SECRET se generan al azar en cada ejecución), se crean el esquema y
 los datos de prueba y se ejecuta Newman. El reporte JUnit queda como artefacto.
 
 ## Prueba de carga (k6)
