@@ -40,7 +40,7 @@ ahora_ms() { date +%s%3N; }
 
 # Destino debe estar vacío: protección para no restaurar sobre una base con datos
 TABLAS_DESTINO=$(psql "$DESTINO_URL" -XAtqc "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
-if [ "$TABLAS_DESTINO" != "0" ]; then
+if [[ "$TABLAS_DESTINO" != "0" ]]; then
   echo "❌ La base destino no está vacía ($TABLAS_DESTINO tablas). Se cancela para no sobrescribir datos." >&2
   exit 2
 fi
@@ -50,7 +50,7 @@ huella() {  # $1 = url, $2 = archivo de salida  → "tabla|filas|md5"
   psql "$url" -XAtqc "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY 1" > "$TMP/tablas"
   : > "$out"
   while read -r t; do
-    [ -z "$t" ] && continue
+    [[ -z "$t" ]] && continue
     # SET TIME ZONE en la misma sesión: el proxy de Neon no aplica PGTZ al conectar
     psql "$url" -XAtq -c "SET TIME ZONE 'UTC'" -c "SELECT '$t' || '|' || count(*) || '|' || coalesce(md5(string_agg(x::text, '¦' ORDER BY x::text)), '-') FROM public.\"$t\" x" >> "$out"
   done < "$TMP/tablas"
@@ -90,9 +90,9 @@ while IFS='|' read -r t n_antes h_antes; do
   linea_rest=$(grep "^$t|" "$TMP/restaurado" || true)
   n_rest=$(echo "$linea_rest" | cut -d'|' -f2)
   h_rest=$(echo "$linea_rest" | cut -d'|' -f3)
-  if [ "$linea_desp" != "$t|$n_antes|$h_antes" ]; then
+  if [[ "$linea_desp" != "$t|$n_antes|$h_antes" ]]; then
     estado="⚠️ en uso durante el respaldo"
-  elif [ "$n_rest" = "$n_antes" ] && [ "$h_rest" = "$h_antes" ]; then
+  elif [[ "$n_rest" = "$n_antes" && "$h_rest" = "$h_antes" ]]; then
     estado="✅ coincide"
   else
     estado="❌ NO coincide"
@@ -104,7 +104,7 @@ done < "$TMP/antes"
 
 RESPALDO_S=$(awk "BEGIN{printf \"%.1f\", ($T1-$T0)/1000}")
 RESTAURA_S=$(awk "BEGIN{printf \"%.1f\", ($T3-$T2)/1000}")
-RESULTADO=$([ "$ERRORES" -eq 0 ] && echo "EXITOSA" || echo "FALLIDA")
+RESULTADO=$([[ "$ERRORES" -eq 0 ]] && echo "EXITOSA" || echo "FALLIDA")
 
 cat > "$INFORME" <<EOF
 # Informe de prueba de restauración · MAFRY
@@ -127,5 +127,5 @@ ${FILAS_TABLA}
 EOF
 
 cat "$INFORME"
-[ "$ERRORES" -eq 0 ] || { echo "❌ La restauración no coincide con el origen" >&2; exit 1; }
+[[ "$ERRORES" -eq 0 ]] || { echo "❌ La restauración no coincide con el origen" >&2; exit 1; }
 echo "✅ Restauración verificada"

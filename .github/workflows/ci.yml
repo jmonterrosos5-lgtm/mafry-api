@@ -1,29 +1,99 @@
-name: CI MAFRY
+name: CI/CD MAFRY
+
+# Pipeline de la Fase 2 (Aseguramiento de la Calidad de Software).
+# Orden obligatorio: compilación → pruebas unitarias → análisis estático (SonarCloud + quality gate)
+#                    → pruebas de API (Newman) → despliegue al ambiente de la rama.
+#
+# Ramas y ambientes (ver docs/calidad/ESTRATEGIA_DE_RAMAS.md):
+#   dev  → integración continua (sin despliegue)
+#   qa   → despliegue a Render "mafry-api-qa"   (BD: rama "qa" de Neon)
+#   main → despliegue a Render "mafry-api"      (BD: rama "production" de Neon)
+# Las reglas de la rama qa y main exigen que este pipeline pase antes de permitir el merge.
 
 on:
   push:
-    branches: [main, develop]
+    branches: [dev, qa, main]
   pull_request:
-    branches: [main]
+    branches: [dev, qa, main]
+  workflow_dispatch:
 
 # Mínimo privilegio para el token del workflow
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 20
+
 jobs:
-  # Búsqueda de secretos (contraseñas, tokens, cadenas de conexión) en los commits enviados.
-  # Nace del incidente de 2026: credenciales de PostgreSQL y JWT publicadas en el repositorio.
+  # ─────────────────────────── 1. COMPILACIÓN ───────────────────────────
+  compilacion:
+    name: 1. Compilación
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Instalar dependencias (npm ci, versiones exactas del lockfile)
+        run: npm ci --ignore-scripts
+      - name: ESLint
+        run: npm run lint
+      - name: Verificar sintaxis de todos los módulos
+        run: |
+          for f in $(git ls-files 'src/**.js' 'public/admin/*.js' 'scripts/*.js'); do node --check "$f"; done
+      - name: Auditoría de dependencias de producción
+        run: npm audit --audit-level=high --omit=dev
+      - name: Construir imagen Docker
+        run: docker build -t mafry-api:${{ github.sha }} .
+
+  # Búsqueda de secretos en el historial (control nacido del incidente de credenciales expuestas).
   secretos:
+    name: 1b. Búsqueda de secretos (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  pruebas:
+  # ─────────────────────────── 2. PRUEBAS UNITARIAS ───────────────────────────
+  pruebas-unitarias:
+    name: 2. Pruebas unitarias (Jest + mocks)
+    needs: [compilacion]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Ejecutar pruebas unitarias con cobertura (falla si < 70 %, RNF-05)
+        run: npm run test:unit
+      - name: Resumen de cobertura en la página del pipeline
+        if: always()
+        run: |
+          echo '### Cobertura unitaria — módulos críticos (E2)' >> "$GITHUB_STEP_SUMMARY"
+          node -e "const s=require('./coverage/unit/coverage-summary.json').total;console.log('| Métrica | % |\n|---|---|\n'+['lines','statements','branches','functions'].map(k=>'| '+k+' | '+s[k].pct+' |').join('\n'))" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-unitaria
+          path: |
+            coverage/unit
+            reports/junit-unitarias.xml
+
+  # Pruebas de integración existentes (supertest + PostgreSQL). No se cuentan como unitarias.
+  pruebas-integracion:
+    name: 2b. Pruebas de integración (supertest + PostgreSQL)
+    needs: [compilacion]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -31,38 +101,136 @@ jobs:
         env:
           POSTGRES_DB: mafry_test
           POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci-solo-pruebas
+          # Base efímera que solo existe dentro del runner: sin contraseña en el código.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U ci" --health-interval 5s --health-retries 10
     env:
-      TEST_DATABASE_URL: postgresql://ci:ci-solo-pruebas@localhost:5432/mafry_test
+      TEST_DATABASE_URL: postgresql://ci@localhost:5432/mafry_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
-      - name: ESLint
-        run: npm run lint
-      - name: Auditoría de dependencias
-        run: npm audit --audit-level=high --omit=dev
-      - name: Pruebas (funcionales y de seguridad)
-        run: npm run test:ci
-      - name: Publicar cobertura
+      - run: npm ci --ignore-scripts
+      - run: npm run test:ci
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: cobertura
-          path: coverage/lcov-report
+          name: cobertura-integracion
+          path: coverage/integracion
 
-  desplegar:
-    needs: [secretos, pruebas]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  # ─────────────────────────── 3. ANÁLISIS ESTÁTICO ───────────────────────────
+  analisis-estatico:
+    name: 3. SonarCloud + quality gate
+    needs: [pruebas-unitarias, pruebas-integracion]
     runs-on: ubuntu-latest
     steps:
-      - name: Disparar despliegue en Render
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Sonar necesita el historial para detectar "código nuevo"
+      - uses: actions/download-artifact@v4
+        with:
+          name: cobertura-unitaria
+      - uses: actions/download-artifact@v4
+        with:
+          name: cobertura-integracion
+          path: coverage/integracion
+      - name: Análisis SonarCloud (espera el resultado del quality gate)
+        uses: SonarSource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703 # v5.3.2
         env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK" -o /dev/null -w "Render respondió HTTP %{http_code}\n"
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  # ─────────────────────────── 4. PRUEBAS DE API ───────────────────────────
+  pruebas-api:
+    name: 4. Pruebas de API (Postman + Newman)
+    needs: [analisis-estatico]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mafry_api
+          POSTGRES_USER: ci
+          # Base efímera que solo existe dentro del runner: sin contraseña en el código.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci@localhost:5432/mafry_api
+      NODE_ENV: development
+      PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Generar secretos aleatorios para esta ejecución (no se guardan en el código)
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "SEED_ADMIN_PASSWORD=Ci$(openssl rand -hex 12)" >> "$GITHUB_ENV"
+          echo "SEED_VENDEDOR_PASSWORD=Ci$(openssl rand -hex 12)" >> "$GITHUB_ENV"
+      - name: Crear esquema y datos de prueba
+        run: node scripts/migrate.js && node scripts/seed.js
+      - name: Levantar la API
+        run: |
+          nohup node src/server.js > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:3000/health && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: Ejecutar colección Postman con Newman
+        run: npm run test:api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-newman
+          path: |
+            reports/newman-junit.xml
+            api.log
+
+  # ─────────────────────────── 5. DESPLIEGUE ───────────────────────────
+  desplegar-qa:
+    name: 5. Despliegue a QA (Render)
+    needs: [pruebas-api, secretos]
+    if: github.ref == 'refs/heads/qa' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: qa
+      url: ${{ vars.QA_URL }}
+    steps:
+      - name: Disparar despliegue en Render (servicio QA)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_QA }}
+        run: curl -fsS -X POST "$HOOK" -o /dev/null -w "Render respondió HTTP %{http_code}\n"
+      - name: Prueba de humo del ambiente desplegado
+        run: |
+          sleep 60
+          for i in $(seq 1 30); do curl -fs "${{ vars.QA_URL }}/health" && exit 0; sleep 20; done
+          exit 1
+
+  desplegar-produccion:
+    name: 5. Despliegue a Producción (Render)
+    needs: [pruebas-api, secretos]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: produccion
+      url: https://mafry-api.onrender.com
+    steps:
+      - name: Disparar despliegue en Render (servicio de producción)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$HOOK" -o /dev/null -w "Render respondió HTTP %{http_code}\n"
+      - name: Prueba de humo del ambiente desplegado
+        run: |
+          sleep 60
+          for i in $(seq 1 30); do curl -fs https://mafry-api.onrender.com/health && exit 0; sleep 20; done
+          exit 1

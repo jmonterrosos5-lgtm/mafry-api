@@ -30,4 +30,7 @@ async function iniciar() {
   process.on('SIGINT', cerrar);
 }
 
-iniciar();
+iniciar().catch((err) => {
+  console.error('❌ Error al iniciar el servidor:', err.message);
+  process.exit(1);
+});

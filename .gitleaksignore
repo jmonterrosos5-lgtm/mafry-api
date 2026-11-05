@@ -6,3 +6,12 @@
 # Mismos hallazgos al escanear la carpeta de trabajo (sin commit):
 scripts/demo_seguridad.sh:jwt:27
 tests/env.js:generic-api-key:7
+
+# Fase 2 (PR #20): valores de prueba del primer borrador del pipeline (commit 5298bb3). Eran credenciales
+# desechables de una base efímera del runner, nunca usadas fuera de CI; en el commit 1fc37aa se
+# reemplazaron por valores aleatorios generados en cada ejecución. sonar-project.properties: la clave
+# del proyecto de SonarCloud no es un secreto (falso positivo de generic-api-key).
+5298bb337ac8159c6fca27f0e2e4fdf28013bbab:.github/workflows/ci.yml:generic-api-key:166
+5298bb337ac8159c6fca27f0e2e4fdf28013bbab:.github/workflows/ci.yml:generic-api-key:168
+5298bb337ac8159c6fca27f0e2e4fdf28013bbab:sonar-project.properties:generic-api-key:5
+sonar-project.properties:generic-api-key:5
