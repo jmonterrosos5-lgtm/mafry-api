@@ -130,7 +130,7 @@ function iniciarApp() {
   const u = sesion.usuario;
   $('#usuario-nombre').textContent = `${u.nombre} ${u.apellido}`;
   reiniciarInactividad();
-  ir('dashboard');
+  void ir('dashboard'); // ir() maneja sus propios errores y los muestra en la vista
 }
 
 async function ir(nombre) {
@@ -147,7 +147,7 @@ async function ir(nombre) {
     cont.replaceChildren(h('div', { class: 'alerta error' }, err.message));
   }
 }
-$('#menu').addEventListener('click', (e) => { if (e.target.dataset.vista) ir(e.target.dataset.vista); });
+$('#menu').addEventListener('click', (e) => { if (e.target.dataset.vista) void ir(e.target.dataset.vista); });
 $('#btn-recargar').addEventListener('click', () => ir(vistaActual));
 
 // ---------- modal ----------
@@ -189,7 +189,7 @@ function formulario(campos, valores, alGuardar, textoBoton = 'Guardar') {
     try {
       await alGuardar(datos);
       cerrarModal();
-      ir(vistaActual);
+      void ir(vistaActual);
     } catch (err) {
       error.textContent = err.message;
       error.hidden = false;
@@ -254,7 +254,7 @@ async function cambiarEstado(id, estado) {
   try {
     await api(`/pedidos/${id}`, { method: 'PUT', body: { estado } });
     aviso(`Pedido #${id} actualizado a "${estado}"`);
-    ir('pedidos');
+    void ir('pedidos');
   } catch (err) { aviso(err.message, true); }
 }
 
@@ -273,7 +273,7 @@ VISTAS.cobros = async () => {
   const cobros = await api('/cobros');
   const accion = async (id, estado) => {
     if (estado === 'anulado' && !confirm(`¿Anular el cobro #${id}?`)) return;
-    try { await api(`/cobros/${id}`, { method: 'PUT', body: { estado } }); aviso(`Cobro #${id}: ${estado}`); ir('cobros'); }
+    try { await api(`/cobros/${id}`, { method: 'PUT', body: { estado } }); aviso(`Cobro #${id}: ${estado}`); void ir('cobros'); }
     catch (err) { aviso(err.message, true); }
   };
   return h('div', { class: 'panel' }, tabla([
@@ -357,7 +357,7 @@ VISTAS.vendedores = async () => {
       } else if (tipo === 'desbloquear') {
         await api(`/vendedores/${v.id_vendedor}/desbloquear`, { method: 'POST' });
       }
-      aviso('Vendedor actualizado'); ir('vendedores');
+      aviso('Vendedor actualizado'); void ir('vendedores');
     } catch (err) { aviso(err.message, true); }
   };
   const restablecer = (v) => abrirModal(h('h3', {}, `Restablecer contraseña de ${v.nombre}`),
@@ -447,7 +447,7 @@ function panelMfa(u) {
             await api('/auth/mfa/activar', { method: 'POST', body: { codigo: form.elements.codigo.value.trim() } });
             const usr = sesion.usuario; usr.mfa_activo = true; sesion.guardar(sesion.token, usr);
             aviso('Verificación en dos pasos activada');
-            recargar();
+            void recargar();
           } catch (x) { fallo(x); }
         });
         cuerpo.replaceChildren(

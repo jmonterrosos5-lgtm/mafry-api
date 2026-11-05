@@ -30,7 +30,10 @@ function base32Encode(buf) {
 }
 
 function base32Decode(texto) {
-  const limpio = texto.replace(/=+$/, '').toUpperCase();
+  // Quitar el relleno '=' final sin expresión regular (evita backtracking, hallazgo Sonar S8786)
+  let fin = texto.length;
+  while (fin > 0 && texto[fin - 1] === '=') fin--;
+  const limpio = texto.slice(0, fin).toUpperCase();
   let bits = 0;
   let valor = 0;
   const bytes = [];
