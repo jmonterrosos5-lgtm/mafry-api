@@ -47,6 +47,7 @@ module.exports = {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean),
+  RATE_LIMIT_GENERAL: Number(process.env.RATE_LIMIT_GENERAL) || 300,
   LOGIN_MAX_INTENTOS: Number(process.env.LOGIN_MAX_INTENTOS) || 5,
   LOGIN_BLOQUEO_MIN: Number(process.env.LOGIN_BLOQUEO_MIN) || 15,
   AUTO_MIGRATE: process.env.AUTO_MIGRATE === 'true',

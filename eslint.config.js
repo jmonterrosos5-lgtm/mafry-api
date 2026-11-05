@@ -2,7 +2,7 @@ const js = require('@eslint/js');
 const globals = require('globals');
 
 module.exports = [
-  { ignores: ['public/**', 'coverage/**', 'mafry_movil/**'] },
+  { ignores: ['public/**', 'coverage/**', 'mafry_movil/**', 'tests/carga/**', 'reports/**'] },
   js.configs.recommended,
   {
     languageOptions: { ecmaVersion: 2023, sourceType: 'commonjs', globals: { ...globals.node, ...globals.jest } },

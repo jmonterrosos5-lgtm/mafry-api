@@ -1,0 +1,36 @@
+name: Prueba de carga (k6)
+
+# Se ejecuta manualmente: Actions → "Prueba de carga (k6)" → Run workflow.
+# Corre el escenario de tests/carga/carga_mafry.js contra el ambiente desplegado (QA por defecto)
+# y guarda el resumen (JSON + texto) como artefacto para el informe del entregable E14.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: URL del ambiente a probar
+        default: https://mafry-api-qa.onrender.com
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Ejecutar k6 (0→50 VU, 5 min sostenidos)
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          VEND_CORREO: ${{ secrets.CARGA_VEND_CORREO }}
+          VEND_CONTRASENA: ${{ secrets.CARGA_VEND_CONTRASENA }}
+        run: |
+          mkdir -p resultados
+          k6 run --summary-export=resultados/resumen_k6.json tests/carga/carga_mafry.js | tee resultados/salida_k6.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-k6
+          path: resultados
