@@ -41,6 +41,7 @@ export const options = {
   thresholds: {
     'http_req_duration{tipo:negocio}': ['p(95)<500'],   // RNF-01
     http_req_failed: ['rate<0.01'],                     // tasa de error < 1 %
+    respuestas_ok: ['rate>0.99'],                       // ≥ 99 % de validaciones correctas (revisión PR #19)
     'dur_lista_pedidos': ['p(95)<500'],
     'dur_catalogo': ['p(95)<500'],
     'dur_detalle_pedido': ['p(95)<500'],
