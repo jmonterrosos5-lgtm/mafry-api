@@ -28,3 +28,11 @@ _to_delete/
 
 # Datos reales de clientes de MAFRY — no se suben al repositorio
 datos_privados/
+
+# Códigos de recuperación de cuentas (GitHub, Render, Neon): nunca al repositorio
+*recovery-codes*
+*backup-codes*
+*codigos-recuperacion*
+
+# Reportes de pruebas (JUnit)
+reports/
