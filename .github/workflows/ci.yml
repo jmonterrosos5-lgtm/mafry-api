@@ -174,6 +174,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Generar secretos aleatorios para esta ejecución (no se guardan en el código)
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "SEED_ADMIN_PASSWORD=Ci$(openssl rand -hex 12)" >> "$GITHUB_ENV"
+          echo "SEED_VENDEDOR_PASSWORD=Ci$(openssl rand -hex 12)" >> "$GITHUB_ENV"
       - name: Crear esquema y datos de prueba
         run: node scripts/migrate.js && node scripts/seed.js
       - name: Levantar la API
