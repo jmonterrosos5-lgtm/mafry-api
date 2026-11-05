@@ -115,5 +115,7 @@ describe('consultas y actualización', () => {
     await c.actualizarCobro(reqAdmin({ params: { id: '5' }, body: { estado: 'verificado' } }), res);
     expect(pool.query.mock.calls[0][0]).toContain("estado <> 'anulado'");
     expect(res.status).toHaveBeenCalledWith(404);
+    // Revisión PR #18: una actualización rechazada no debe quedar auditada
+    expect(registrar).not.toHaveBeenCalled();
   });
 });
