@@ -9,33 +9,8 @@ const API = '/api';
 const INACTIVIDAD_MS = 30 * 60 * 1000;
 const $ = (s) => document.querySelector(s);
 
-// ---------- utilidades DOM seguras ----------
-function h(tag, attrs = {}, ...hijos) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else if (k === 'style') el.style.cssText = v; // CSSOM: permitido por la CSP (no usa estilos inline)
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const hijo of hijos.flat()) {
-    if (hijo === null || hijo === undefined || hijo === false) continue;
-    el.append(hijo instanceof Node ? hijo : document.createTextNode(String(hijo)));
-  }
-  return el;
-}
-const Q = (n) => 'Q' + Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fecha = (f) => (f ? new Date(String(f).length === 10 ? f + 'T12:00' : f).toLocaleDateString('es-GT') : '—');
-const fechaHora = (f) => (f ? new Date(f).toLocaleString('es-GT', { dateStyle: 'short', timeStyle: 'short' }) : '—');
-const chip = (t) => h('span', { class: `chip ${t}` }, String(t).replace('_', ' '));
-
-function tabla(columnas, filas, vacio = 'Sin registros') {
-  if (!filas.length) return h('div', { class: 'vacio' }, vacio);
-  return h('div', { class: 'tabla-wrap' }, h('table', {},
-    h('thead', {}, h('tr', {}, columnas.map((c) => h('th', { class: c.num ? 'num' : null }, c.t)))),
-    h('tbody', {}, filas.map((f) => h('tr', {}, columnas.map((c) => h('td', { class: c.num ? 'num' : null }, c.v(f))))))));
-}
+// ---------- utilidades DOM seguras (en lib.js, probadas con Jest) ----------
+const { h, Q, fecha, fechaHora, chip, tabla, crearClienteApi, accionesPedido } = window.MafryLib;
 
 function aviso(texto, error = false) {
   const el = $('#aviso');
@@ -54,24 +29,13 @@ const sesion = {
   cerrar(msg) { sessionStorage.clear(); mostrarLogin(msg); },
 };
 
-async function api(ruta, opciones = {}) {
-  const res = await fetch(API + ruta, {
-    method: opciones.method || 'GET',
-    headers: { 'Content-Type': 'application/json', ...(sesion.token ? { Authorization: `Bearer ${sesion.token}` } : {}) },
-    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
-  });
-  let datos = null;
-  try { datos = await res.json(); } catch { /* sin cuerpo */ }
-  if (res.status === 401 && !ruta.startsWith('/auth/login') && !ruta.startsWith('/auth/mfa/verificar')) {
-    sesion.cerrar('Su sesión expiró. Ingrese de nuevo.');
-    throw new Error('Sesión expirada');
-  }
-  if (!res.ok) {
-    const detalle = datos && datos.campos ? ': ' + datos.campos.map((c) => `${c.campo} (${c.mensaje})`).join(', ') : '';
-    throw new Error(((datos && datos.error) || `Error ${res.status}`) + detalle);
-  }
-  return datos;
-}
+// Cliente de la API con dependencias reales (en las pruebas se reemplazan por dobles).
+const api = crearClienteApi({
+  base: API,
+  fetchFn: (...args) => fetch(...args),
+  obtenerToken: () => sesion.token,
+  alExpirar: (msg) => sesion.cerrar(msg),
+});
 
 let temporizador;
 function reiniciarInactividad() {
@@ -277,7 +241,7 @@ VISTAS.pedidos = async () => {
     { t: '', v: (p) => h('div', { class: 'acciones' },
       h('button', { class: 'btn fantasma mini', onclick: () => verPedido(p.id_pedido) }, 'Ver'),
       (SIG[p.estado] || []).map(([e, t]) => h('button', { class: 'btn primario mini', onclick: () => cambiarEstado(p.id_pedido, e) }, t)),
-      ['pendiente', 'confirmado'].includes(p.estado)
+      accionesPedido(p.estado).includes('anulado')
         ? h('button', { class: 'btn peligro mini', onclick: () => cambiarEstado(p.id_pedido, 'anulado') }, 'Anular') : null) },
   ], pedidos.filter((p) => !filtro.value || p.estado === filtro.value)));
   filtro.addEventListener('change', pintar);
